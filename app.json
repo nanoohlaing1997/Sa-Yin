@@ -1,15 +1,18 @@
 {
   "expo": {
-    "name": "Sa-Yin",
-    "slug": "Sa-Yin",
+    "name": "Sa Yin",
+    "slug": "sa-yin",
+    "scheme": "sayin",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nanoohlaing.sayin"
     },
     "android": {
+      "package": "com.nanoohlaing.sayin",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -19,7 +22,14 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
