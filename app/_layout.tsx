@@ -61,6 +61,10 @@ function RootNavigator() {
         options={{ presentation: 'modal', headerShown: false }}
       />
       <Stack.Screen
+        name="change-password"
+        options={{ presentation: 'modal', headerShown: false }}
+      />
+      <Stack.Screen
         name="catalog"
         options={{ presentation: 'modal', headerShown: false }}
       />
