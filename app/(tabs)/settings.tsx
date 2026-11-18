@@ -4,13 +4,14 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { TabIcon } from '@/components/TabIcons';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { Card, SectionTitle } from '@/components/ui';
+import { Button, Card, SectionTitle } from '@/components/ui';
+import { confirmAction } from '@/lib/dialog';
 import { useAuth } from '@/lib/auth-context';
 import { colors, spacing } from '@/theme';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
   return (
     <View style={styles.safe}>
@@ -36,6 +37,21 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Row label="Account" value={user?.email ?? '—'} />
         </Card>
+
+        <View style={styles.signOut}>
+          <Button
+            title="Sign out"
+            variant="secondary"
+            onPress={() =>
+              confirmAction(
+                'Sign out?',
+                'You’ll need your password to unlock the app again on this device.',
+                'Sign out',
+                signOut
+              )
+            }
+          />
+        </View>
       </ScrollView>
     </View>
   );
@@ -111,4 +127,5 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 15, color: colors.text, fontWeight: '600' },
   rowValue: { flexShrink: 1, fontSize: 15, color: colors.muted, fontWeight: '600' },
   divider: { height: 1, backgroundColor: colors.border },
+  signOut: { marginTop: spacing(1) },
 });

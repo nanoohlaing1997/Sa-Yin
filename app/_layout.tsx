@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { SignInScreen } from '@/components/SignInScreen';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { PeriodProvider } from '@/lib/period-context';
 import { colors } from '@/theme';
@@ -27,7 +28,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { initialising, error } = useAuth();
+  const { initialising, user } = useAuth();
 
   if (initialising) {
     return (
@@ -37,13 +38,7 @@ function RootNavigator() {
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.splash}>
-        <Text style={styles.error}>{error}</Text>
-      </View>
-    );
-  }
+  if (!user) return <SignInScreen />;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
@@ -96,5 +91,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     padding: 24,
   },
-  error: { color: colors.text, fontSize: 16, textAlign: 'center' },
 });

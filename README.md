@@ -4,8 +4,8 @@ A small bookkeeping app for a sushi bar: record the **supplies you buy** and the
 **money you receive from your franchise**, and see the profit each month.
 
 Built with **Expo (React Native) + TypeScript** (iOS, Android and web), backed
-by **Firebase Auth** and **Cloud Firestore**. Single-user — there is no login
-screen; the app signs in automatically as the owner account in `.env`.
+by **Firebase Auth** and **Cloud Firestore**. Single-user — you unlock the app
+with the owner account's password once per device; only the email is in `.env`.
 
 ## Features
 
