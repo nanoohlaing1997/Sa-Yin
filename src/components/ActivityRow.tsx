@@ -1,40 +1,44 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { getCategory } from '@/lib/categories';
 import { formatDate, formatMoney } from '@/lib/format';
-import { Transaction } from '@/lib/transactions';
-import { colors, radius, spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
 
 type Props = {
-  transaction: Transaction;
+  kind: 'income' | 'supplies';
+  title: string;
+  subtitle: string;
+  amount: number;
+  date: Date;
   onPress?: () => void;
 };
 
-export function TransactionRow({ transaction, onPress }: Props) {
-  const category = getCategory(transaction.categoryId);
-  const isIncome = transaction.type === 'income';
-
+/** One money-in or money-out line, used on Home and the list tabs. */
+export function ActivityRow({ kind, title, subtitle, amount, date, onPress }: Props) {
+  const isIncome = kind === 'income';
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
     >
-      <View style={[styles.icon, { backgroundColor: `${category.color}1A` }]}>
-        <Text style={styles.iconText}>{category.emoji}</Text>
+      <View
+        style={[styles.icon, { backgroundColor: isIncome ? '#E3F6EE' : '#FCE7F2' }]}
+      >
+        <Text style={styles.iconText}>{isIncome ? '💰' : '🛒'}</Text>
       </View>
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
-          {transaction.note || category.label}
+          {title}
         </Text>
         <Text style={styles.meta} numberOfLines={1}>
-          {category.label} · {formatDate(transaction.date)}
+          {subtitle ? `${subtitle} · ` : ''}
+          {formatDate(date)}
         </Text>
       </View>
       <Text style={[styles.amount, { color: isIncome ? colors.income : colors.text }]}>
         {isIncome ? '+' : '−'}
-        {formatMoney(transaction.amount)}
+        {formatMoney(amount)}
       </Text>
     </Pressable>
   );
@@ -50,7 +54,7 @@ const styles = StyleSheet.create({
   icon: {
     width: 42,
     height: 42,
-    borderRadius: radius.md,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
   },

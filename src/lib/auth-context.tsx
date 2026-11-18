@@ -1,21 +1,18 @@
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut as fbSignOut,
-  updateProfile,
-  User,
-} from 'firebase/auth';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { onAuthStateChanged, signInWithEmailAndPassword, User } from 'firebase/auth';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 import { auth } from './firebase';
 
+/**
+ * Single-user app: there are no login screens. The app signs in silently with
+ * the owner account from EXPO_PUBLIC_OWNER_EMAIL / EXPO_PUBLIC_OWNER_PASSWORD
+ * so Firestore rules (which key off the uid) keep working and data is shared
+ * across devices. The session is persisted by Firebase after the first sign-in.
+ */
 type AuthContextValue = {
   user: User | null;
   initialising: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  error: string | null;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -23,69 +20,54 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const [initialising, setInitialising] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(
-    () =>
-      onAuthStateChanged(auth, (next) => {
+  useEffect(() => {
+    let cancelled = false;
+    const unsubscribe = onAuthStateChanged(auth, async (next) => {
+      if (cancelled) return;
+      if (next) {
         setUser(next);
+        setError(null);
         setInitialising(false);
-      }),
-    []
-  );
+        return;
+      }
+      const email = process.env.EXPO_PUBLIC_OWNER_EMAIL;
+      const password = process.env.EXPO_PUBLIC_OWNER_PASSWORD;
+      if (!email || !password) {
+        setError('Missing EXPO_PUBLIC_OWNER_EMAIL / EXPO_PUBLIC_OWNER_PASSWORD in .env.');
+        setInitialising(false);
+        return;
+      }
+      try {
+        // Success triggers onAuthStateChanged again with the user.
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        if (cancelled) return;
+        const code = (e as { code?: string }).code ?? '';
+        setError(
+          code === 'auth/invalid-credential' || code === 'auth/user-not-found'
+            ? 'Owner account not found or wrong password. Create it in Firebase console → Authentication → Users.'
+            : e instanceof Error
+              ? e.message
+              : 'Could not sign in.'
+        );
+        setInitialising(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      initialising,
-      async signIn(email, password) {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
-      },
-      async signUp(name, email, password) {
-        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        const displayName = name.trim();
-        if (displayName) {
-          await updateProfile(cred.user, { displayName });
-          // onAuthStateChanged doesn't fire for profile updates.
-          setUser({ ...cred.user, displayName } as User);
-        }
-      },
-      async signOut() {
-        await fbSignOut(auth);
-      },
-    }),
-    [user, initialising]
+  return (
+    <AuthContext.Provider value={{ user, initialising, error }}>{children}</AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
   return ctx;
-}
-
-/** Maps Firebase auth error codes to something worth showing a user. */
-export function authErrorMessage(error: unknown): string {
-  const code = (error as { code?: string } | null)?.code ?? '';
-  switch (code) {
-    case 'auth/invalid-email':
-      return 'That email address doesn’t look right.';
-    case 'auth/missing-password':
-      return 'Enter your password.';
-    case 'auth/weak-password':
-      return 'Password must be at least 6 characters.';
-    case 'auth/email-already-in-use':
-      return 'An account already exists with that email.';
-    case 'auth/invalid-credential':
-    case 'auth/wrong-password':
-    case 'auth/user-not-found':
-      return 'Email or password is incorrect.';
-    case 'auth/too-many-requests':
-      return 'Too many attempts. Try again in a few minutes.';
-    case 'auth/network-request-failed':
-      return 'Network error. Check your connection.';
-    default:
-      return error instanceof Error ? error.message : 'Something went wrong.';
-  }
 }

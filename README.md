@@ -1,32 +1,38 @@
 # Sa Yin
 
-A personal expense tracker for iOS — record what you spend and earn, and see
-where the money actually went each month.
+A small bookkeeping app for a sushi bar: record the **supplies you buy** and the
+**money you receive from your franchise**, and see the profit each month.
 
-Built with **Expo (React Native) + TypeScript**, backed by **Firebase Auth**
-and **Cloud Firestore**.
+Built with **Expo (React Native) + TypeScript** (iOS, Android and web), backed
+by **Firebase Auth** and **Cloud Firestore**. Single-user — there is no login
+screen; the app signs in automatically as the owner account in `.env`.
 
 ## Features
 
-- Email/password sign up and sign in, with the session persisted on-device
-- Add, edit, and delete expenses and income
-- Pre-set categories with colours and icons
-- Monthly report: net balance, income vs expenses, and a donut breakdown of
-  spending by category
-- Transactions list grouped by day, with per-day totals
-- Month switcher shared across the report and the list
-- Live updates — Firestore pushes changes to every screen as they happen
+- **Franchise income** — record each payment you receive; see the monthly total
+- **Supplies purchases** — pick the store, then add each item with quantity,
+  unit and amount; see totals by store and by item
+- **Home** — profit (income − supplies), money in / out, supplies by store,
+  and recent activity
+- Manage your lists of stores and items (units like case, lbs, pack)
+- View by **calendar month** (default) or **4-week period** — the franchise pays
+  every 28 days, so 4-week periods line up with its payments. Tap the period to
+  pick a month or choose the day 4-week periods start on
+- "Next franchise payment" reminder (last payment + 28 days) with one-tap record
+- Live updates from Firestore
 
 ## Screens
 
 | Route | What it is |
 | --- | --- |
-| `app/(auth)/sign-in.tsx` | Sign in |
-| `app/(auth)/sign-up.tsx` | Create account |
-| `app/(tabs)/index.tsx` | Monthly report + donut chart |
-| `app/(tabs)/transactions.tsx` | Transactions grouped by day |
-| `app/(tabs)/settings.tsx` | Profile and sign out |
-| `app/transaction.tsx` | Add / edit transaction (modal) |
+| `app/(tabs)/index.tsx` | Home: profit, money in/out, recent activity |
+| `app/(tabs)/income.tsx` | Franchise income for the month |
+| `app/(tabs)/supplies.tsx` | Supplies purchases for the month |
+| `app/(tabs)/settings.tsx` | About |
+| `app/new.tsx` | "What do you want to record?" (centre + button) |
+| `app/income-entry.tsx` | Add / edit franchise income |
+| `app/purchase.tsx` | Add / edit a supplies purchase |
+| `app/catalog.tsx` | Manage stores and items |
 
 ## Getting started
 
@@ -76,18 +82,15 @@ If you edit `.env`, restart with `npx expo start -c` to clear the Metro cache.
 ## Data model
 
 ```
-users/{uid}/transactions/{transactionId}
-  type        'expense' | 'income'
-  amount      number (always positive; `type` carries the direction)
-  categoryId  string   (see src/lib/categories.ts)
-  note        string
-  date        Timestamp
-  createdAt   Timestamp
-  updatedAt   Timestamp
+users/{uid}/stores/{id}      name, nameKey
+users/{uid}/items/{id}       name, nameKey, unit
+users/{uid}/income/{id}      date, amount, note
+users/{uid}/purchases/{id}   date, storeId, storeName, total,
+                             lines[{ itemId, itemName, unit, qty, amount }]
 ```
 
-Categories are defined in code rather than stored, so they stay consistent and
-cost no reads.
+Store and item names are copied into each purchase at save time, so history
+still reads correctly after something is renamed or deleted.
 
 ## Project layout
 
