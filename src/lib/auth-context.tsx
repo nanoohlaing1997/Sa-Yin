@@ -1,7 +1,10 @@
 import {
+  EmailAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
+  updatePassword,
   User,
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
@@ -21,6 +24,7 @@ type AuthContextValue = {
   initialising: boolean;
   signIn: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  changePassword: (current: string, next: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -49,6 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async signOut() {
         await fbSignOut(auth);
       },
+      async changePassword(current, next) {
+        const me = auth.currentUser;
+        if (!me?.email) throw new Error('Not signed in.');
+        // Firebase requires a fresh sign-in before a password change.
+        await reauthenticateWithCredential(me, EmailAuthProvider.credential(me.email, current));
+        await updatePassword(me, next);
+      },
     }),
     [user, initialising]
   );
@@ -70,6 +81,8 @@ export function authErrorMessage(error: unknown): string {
     case 'auth/wrong-password':
     case 'auth/user-not-found':
       return 'That password isn’t right.';
+    case 'auth/weak-password':
+      return 'Choose a stronger password (at least 8 characters).';
     case 'auth/missing-password':
       return 'Enter your password.';
     case 'auth/too-many-requests':

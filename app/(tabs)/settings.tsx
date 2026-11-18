@@ -27,6 +27,16 @@ export default function SettingsScreen() {
           />
         </Card>
 
+        <SectionTitle>Security</SectionTitle>
+        <Card style={styles.flush}>
+          <LinkRow
+            emoji="🔒"
+            label="Change password"
+            hint="The password you unlock the app with"
+            onPress={() => router.push('/change-password')}
+          />
+        </Card>
+
         <SectionTitle>About</SectionTitle>
         <Card>
           <Row label="App" value="Sa Yin" />
