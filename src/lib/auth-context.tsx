@@ -1,20 +1,25 @@
 import {
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
-  updateProfile,
   User,
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { auth } from './firebase';
 
+/**
+ * Single-user app. The owner's email comes from EXPO_PUBLIC_OWNER_EMAIL (not a
+ * secret); the password is typed once per device and never shipped in the
+ * build. Firebase persists the session, so it's only asked for again after
+ * signing out or clearing site data.
+ */
+export const OWNER_EMAIL = process.env.EXPO_PUBLIC_OWNER_EMAIL ?? '';
+
 type AuthContextValue = {
   user: User | null;
   initialising: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  signIn: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -37,17 +42,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       initialising,
-      async signIn(email, password) {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
-      },
-      async signUp(name, email, password) {
-        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        const displayName = name.trim();
-        if (displayName) {
-          await updateProfile(cred.user, { displayName });
-          // onAuthStateChanged doesn't fire for profile updates.
-          setUser({ ...cred.user, displayName } as User);
-        }
+      async signIn(password) {
+        if (!OWNER_EMAIL) throw new Error('Missing EXPO_PUBLIC_OWNER_EMAIL in .env.');
+        await signInWithEmailAndPassword(auth, OWNER_EMAIL, password);
       },
       async signOut() {
         await fbSignOut(auth);
@@ -65,27 +62,21 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-/** Maps Firebase auth error codes to something worth showing a user. */
+/** Maps Firebase sign-in errors to something worth showing. */
 export function authErrorMessage(error: unknown): string {
   const code = (error as { code?: string } | null)?.code ?? '';
   switch (code) {
-    case 'auth/invalid-email':
-      return 'That email address doesn’t look right.';
-    case 'auth/missing-password':
-      return 'Enter your password.';
-    case 'auth/weak-password':
-      return 'Password must be at least 6 characters.';
-    case 'auth/email-already-in-use':
-      return 'An account already exists with that email.';
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
     case 'auth/user-not-found':
-      return 'Email or password is incorrect.';
+      return 'That password isn’t right.';
+    case 'auth/missing-password':
+      return 'Enter your password.';
     case 'auth/too-many-requests':
       return 'Too many attempts. Try again in a few minutes.';
     case 'auth/network-request-failed':
-      return 'Network error. Check your connection.';
+      return 'No connection. Check your internet and try again.';
     default:
-      return error instanceof Error ? error.message : 'Something went wrong.';
+      return error instanceof Error ? error.message : 'Could not sign in.';
   }
 }

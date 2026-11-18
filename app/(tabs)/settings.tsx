@@ -1,50 +1,30 @@
-import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { TabIcon } from '@/components/TabIcons';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { Button, Card, SectionTitle } from '@/components/ui';
+import { confirmAction } from '@/lib/dialog';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { user, signOut } = useAuth();
-  const [busy, setBusy] = useState(false);
-
-  function onSignOut() {
-    Alert.alert('Sign out?', 'You can sign back in any time.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: async () => {
-          setBusy(true);
-          try {
-            await signOut();
-          } finally {
-            setBusy(false);
-          }
-        },
-      },
-    ]);
-  }
-
-  const initial = (user?.displayName ?? user?.email ?? '?').charAt(0).toUpperCase();
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <View style={styles.safe}>
+      <ScreenHeader title="Settings" subtitle="Sa Yin" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Settings</Text>
-
-        <Card style={styles.profile}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
-          </View>
-          <View style={styles.profileText}>
-            <Text style={styles.name}>{user?.displayName || 'Signed in'}</Text>
-            <Text style={styles.email} numberOfLines={1}>
-              {user?.email}
-            </Text>
-          </View>
+        <SectionTitle>Your lists</SectionTitle>
+        <Card style={styles.flush}>
+          <LinkRow
+            emoji="📋"
+            label="Stores & items"
+            hint="Where you buy and what you buy"
+            onPress={() => router.push('/catalog')}
+          />
         </Card>
 
         <SectionTitle>About</SectionTitle>
@@ -54,13 +34,55 @@ export default function SettingsScreen() {
           <Row label="Version" value="1.0.0" />
           <View style={styles.divider} />
           <Row label="Currency" value="USD" />
+          <View style={styles.divider} />
+          <Row label="Account" value={user?.email ?? '—'} />
         </Card>
 
-        <View style={styles.actions}>
-          <Button title="Sign out" variant="secondary" onPress={onSignOut} loading={busy} />
+        <View style={styles.signOut}>
+          <Button
+            title="Sign out"
+            variant="secondary"
+            onPress={() =>
+              confirmAction(
+                'Sign out?',
+                'You’ll need your password to unlock the app again on this device.',
+                'Sign out',
+                signOut
+              )
+            }
+          />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+function LinkRow({
+  emoji,
+  label,
+  hint,
+  onPress,
+}: {
+  emoji: string;
+  label: string;
+  hint: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.link, pressed && { backgroundColor: colors.bg }]}
+    >
+      <View style={styles.linkIcon}>
+        <Text style={styles.linkEmoji}>{emoji}</Text>
+      </View>
+      <View style={styles.linkText}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={styles.linkHint}>{hint}</Text>
+      </View>
+      <TabIcon name="chevron-right" color={colors.muted} size={18} />
+    </Pressable>
   );
 }
 
@@ -68,35 +90,42 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
+      <Text style={styles.rowValue} numberOfLines={1}>
+        {value}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing(2), gap: spacing(1.5) },
-  title: { fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-  profile: { flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
+  content: { padding: spacing(2), gap: spacing(1.5), paddingBottom: 140 },
+  flush: { padding: 0, overflow: 'hidden' },
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(1.5),
+    padding: spacing(2),
+  },
+  linkIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#EEE9FB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 22, fontWeight: '700', color: colors.primary },
-  profileText: { flex: 1 },
-  name: { fontSize: 17, fontWeight: '700', color: colors.text },
-  email: { fontSize: 14, color: colors.muted, marginTop: 2 },
+  linkEmoji: { fontSize: 20 },
+  linkText: { flex: 1 },
+  linkHint: { fontSize: 13, color: colors.muted, marginTop: 2 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: spacing(2),
     paddingVertical: spacing(1.25),
   },
-  rowLabel: { fontSize: 15, color: colors.text },
-  rowValue: { fontSize: 15, color: colors.muted, fontWeight: '600' },
+  rowLabel: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  rowValue: { flexShrink: 1, fontSize: 15, color: colors.muted, fontWeight: '600' },
   divider: { height: 1, backgroundColor: colors.border },
-  actions: { marginTop: spacing(2) },
+  signOut: { marginTop: spacing(1) },
 });
