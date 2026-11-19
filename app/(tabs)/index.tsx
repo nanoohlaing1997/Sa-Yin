@@ -24,15 +24,16 @@ type Activity =
 export default function HomeScreen() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const { start, end, noun } = usePeriod();
+  const { start, end, noun, ready } = usePeriod();
   const router = useRouter();
 
-  const incomeState = useIncomeInRange(uid, start, end);
-  const purchaseState = usePurchasesInRange(uid, start, end);
+  // Wait for the period so a wrong one isn't loaded first.
+  const incomeState = useIncomeInRange(ready ? uid : null, start, end);
+  const purchaseState = usePurchasesInRange(ready ? uid : null, start, end);
   const incomeSummary = useIncomeSummary(incomeState.income);
   const purchaseSummary = usePurchaseSummary(purchaseState.purchases);
 
-  const loading = incomeState.loading || purchaseState.loading;
+  const loading = !ready || incomeState.loading || purchaseState.loading;
   const error = incomeState.error ?? purchaseState.error;
   const net = incomeSummary.total - purchaseSummary.total;
 

@@ -48,6 +48,8 @@ export default function IncomeEntryModal() {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The record being edited was deleted; closing the error closes the form.
+  const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     if (!uid || !id) return;
@@ -56,7 +58,8 @@ export default function IncomeEntryModal() {
       .then((entry) => {
         if (cancelled) return;
         if (!entry) {
-          setError('That income record no longer exists.');
+          setMissing(true);
+          setError('That income record no longer exists. It may have been deleted.');
           return;
         }
         setAmount(String(entry.amount));
@@ -179,7 +182,14 @@ export default function IncomeEntryModal() {
           </FormFooter>
         </KeyboardAvoidingView>
       )}
-      <ErrorPopup message={error} onClose={() => setError(null)} />
+      <ErrorPopup
+        message={error}
+        title={missing ? 'Income not found' : undefined}
+        onClose={() => {
+          setError(null);
+          if (missing) close();
+        }}
+      />
     </SafeAreaView>
   );
 }
