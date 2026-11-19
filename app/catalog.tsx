@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -14,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, EmptyState, ErrorBanner, Loader, ModalHeader } from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
+import { useClose } from '@/lib/navigation';
 import {
   createItem,
   createStore,
@@ -33,12 +33,12 @@ import { colors, radius, spacing } from '@/theme';
 type Tab = 'stores' | 'items';
 
 export default function CatalogScreen() {
-  const router = useRouter();
+  const close = useClose();
   const [tab, setTab] = useState<Tab>('stores');
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ModalHeader title="Stores & items" onClose={() => router.back()} closeLabel="Done" />
+      <ModalHeader title="Stores & items" onClose={() => close()} closeLabel="Done" />
 
       <View style={styles.segmentWrap}>
         <View style={styles.segment}>

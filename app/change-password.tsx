@@ -1,16 +1,16 @@
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, ErrorBanner, Field, FormFooter, ModalHeader } from '@/components/ui';
 import { authErrorMessage, useAuth } from '@/lib/auth-context';
+import { useClose } from '@/lib/navigation';
 import { colors, radius, spacing } from '@/theme';
 
 const MIN_LENGTH = 8;
 
 export default function ChangePasswordModal() {
-  const router = useRouter();
+  const close = useClose();
   const { changePassword } = useAuth();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -52,7 +52,7 @@ export default function ChangePasswordModal() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ModalHeader title="Change password" onClose={() => router.back()} />
+      <ModalHeader title="Change password" onClose={() => close()} />
 
       {done ? (
         <View style={styles.doneWrap}>
@@ -64,7 +64,7 @@ export default function ChangePasswordModal() {
             Use your new password next time you unlock Sa Yin on a device.
           </Text>
           <View style={styles.doneButton}>
-            <Button title="Done" onPress={() => router.back()} />
+            <Button title="Done" onPress={() => close()} />
           </View>
         </View>
       ) : (

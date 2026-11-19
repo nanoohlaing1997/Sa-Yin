@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -26,6 +26,7 @@ import {
 } from '@/components/ui';
 import { UnitToggle } from '@/components/UnitToggle';
 import { useAuth } from '@/lib/auth-context';
+import { useClose } from '@/lib/navigation';
 import {
   createItem,
   createStore,
@@ -90,7 +91,7 @@ function taxOf(line: DraftLine): number {
 
 export default function PurchaseModal() {
   const { user } = useAuth();
-  const router = useRouter();
+  const close = useClose();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditing = !!id;
   const uid = user?.uid ?? null;
@@ -243,7 +244,7 @@ export default function PurchaseModal() {
 
       // Make sure the saved entry is on screen when the form closes.
       period.showDate(date);
-      router.back();
+      close();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save.');
       setSaving(false);
@@ -259,7 +260,7 @@ export default function PurchaseModal() {
       async () => {
         try {
           await deletePurchase(uid, id);
-          router.back();
+          close();
         } catch (e) {
           setError(e instanceof Error ? e.message : 'Could not delete.');
         }
@@ -273,7 +274,7 @@ export default function PurchaseModal() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ModalHeader
         title={isEditing ? 'Edit purchase' : 'Supplies purchase'}
-        onClose={() => router.back()}
+        onClose={() => close()}
         right={
           isEditing ? (
             <Pressable onPress={onDelete} hitSlop={8} accessibilityRole="button">

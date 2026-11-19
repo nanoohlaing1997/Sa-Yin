@@ -4,11 +4,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabIcon } from '@/components/TabIcons';
+import { useClose } from '@/lib/navigation';
 import { colors, radius, spacing } from '@/theme';
 
 /** Bottom action sheet opened by the centre "+" button. */
 export default function NewEntry() {
   const router = useRouter();
+  const close = useClose();
   const insets = useSafeAreaInsets();
 
   function go(path: '/income-entry' | '/purchase') {
@@ -21,7 +23,7 @@ export default function NewEntry() {
       <Pressable
         style={StyleSheet.absoluteFill}
         accessibilityLabel="Close"
-        onPress={() => router.back()}
+        onPress={() => close()}
       />
       <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing(2)) }]}>
         <View style={styles.grabber} />
@@ -44,7 +46,7 @@ export default function NewEntry() {
 
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.back()}
+          onPress={() => close()}
           style={({ pressed }) => [styles.cancel, pressed && { opacity: 0.7 }]}
         >
           <Text style={styles.cancelText}>Cancel</Text>
