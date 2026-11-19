@@ -9,17 +9,18 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  Timestamp,
   updateDoc,
   where,
 } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 
+import { dayFields, inPeriod, queryBounds, readDay } from './day';
 import { db } from './firebase';
 
 /** Money received from the franchise on one day. */
 export type Income = {
   id: string;
+  /** The calendar day of the payment, as a local Date at 12:00. */
   date: Date;
   amount: number;
   note: string;
@@ -32,10 +33,9 @@ function incomeCollection(uid: string) {
 }
 
 function toIncome(id: string, data: Record<string, unknown>): Income {
-  const raw = data.date;
   return {
     id,
-    date: raw instanceof Timestamp ? raw.toDate() : new Date(),
+    date: readDay(data),
     amount: typeof data.amount === 'number' ? Math.abs(data.amount) : 0,
     note: typeof data.note === 'string' ? data.note : '',
   };
@@ -43,7 +43,7 @@ function toIncome(id: string, data: Record<string, unknown>): Income {
 
 function serialise(input: IncomeInput) {
   return {
-    date: Timestamp.fromDate(input.date),
+    ...dayFields(input.date),
     amount: Math.abs(input.amount),
     note: input.note.trim(),
   };
@@ -85,16 +85,24 @@ export function useIncomeInRange(uid: string | null, start: Date, end: Date): In
 
   useEffect(() => {
     if (!uid) return;
+    const bounds = queryBounds(new Date(from), new Date(to));
     const q = query(
       incomeCollection(uid),
-      where('date', '>=', Timestamp.fromMillis(from)),
-      where('date', '<=', Timestamp.fromMillis(to)),
+      where('date', '>=', bounds.from),
+      where('date', '<=', bounds.to),
       orderBy('date', 'desc')
     );
     return onSnapshot(
       q,
       (res) =>
-        setSnap({ key, income: res.docs.map((d) => toIncome(d.id, d.data())), error: null }),
+        setSnap({
+          key,
+          income: res.docs
+            .map((d) => toIncome(d.id, d.data()))
+            .filter((e) => inPeriod(e.date, new Date(from), new Date(to)))
+            .sort((a, b) => b.date.getTime() - a.date.getTime()),
+          error: null,
+        }),
       (err) => setSnap({ key, income: [], error: err.message })
     );
   }, [uid, from, to, key]);

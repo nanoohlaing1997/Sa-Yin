@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from './auth-context';
+import { fromDayString, toDayString } from './day';
 import {
   addDays,
   addMonths,
@@ -39,6 +40,8 @@ type PeriodContextValue = {
   prev: () => void;
   /** Month mode: jump to the month containing `date`. 4-week mode: start periods on `date`. */
   pickDate: (date: Date) => void;
+  /** Move the view to the period containing `date` (keeps the 4-week start day). */
+  showDate: (date: Date) => void;
 };
 
 const PeriodContext = createContext<PeriodContextValue | null>(null);
@@ -70,8 +73,9 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
       .then(([[, rawMode], [, rawAnchor]]) => {
         if (cancelled) return;
         if (rawMode === 'cycle' || rawMode === 'month') setModeState(rawMode);
-        const anchor = rawAnchor ? new Date(rawAnchor) : null;
-        if (anchor && !Number.isNaN(anchor.getTime())) setSavedAnchor(anchor);
+        // Saved as "YYYY-MM-DD" so it means the same day in any timezone.
+        const anchor = fromDayString(rawAnchor);
+        if (anchor) setSavedAnchor(startOfDay(anchor));
       })
       .catch(() => undefined);
     return () => {
@@ -80,7 +84,11 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const today = startOfDay(new Date());
-  const anchor = savedAnchor ?? latest?.date ?? today;
+  // With no chosen start day and no payment yet, show the last 28 days up to
+  // today — anchoring on today itself would hide everything dated before it.
+  const anchor =
+    savedAnchor ?? latest?.date ?? addDays(today, -(PAYMENT_CYCLE_DAYS - 1));
+  const anchorMs = startOfDay(anchor).getTime();
   const monthStartMs = (pickedMonth ?? startOfMonth(today)).getTime();
   const cycleStartMs = (pickedCycle ?? cycleStartFor(anchor, today)).getTime();
 
@@ -106,6 +114,9 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
         next: () => setPickedMonth(addMonths(start, 1)),
         prev: () => setPickedMonth(addMonths(start, -1)),
         pickDate: (date) => setPickedMonth(startOfMonth(date)),
+        showDate: (date) => {
+          if (date < start || date > end) setPickedMonth(startOfMonth(date));
+        },
       };
     }
 
@@ -126,10 +137,13 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
         const day = startOfDay(date);
         setSavedAnchor(day);
         setPickedCycle(day);
-        AsyncStorage.setItem(ANCHOR_KEY, day.toISOString()).catch(() => undefined);
+        AsyncStorage.setItem(ANCHOR_KEY, toDayString(day)).catch(() => undefined);
+      },
+      showDate: (date) => {
+        if (date < start || date > end) setPickedCycle(cycleStartFor(new Date(anchorMs), date));
       },
     };
-  }, [mode, monthStartMs, cycleStartMs]);
+  }, [mode, monthStartMs, cycleStartMs, anchorMs]);
 
   return <PeriodContext.Provider value={value}>{children}</PeriodContext.Provider>;
 }

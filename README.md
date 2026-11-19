@@ -84,10 +84,14 @@ If you edit `.env`, restart with `npx expo start -c` to clear the Metro cache.
 ```
 users/{uid}/stores/{id}      name, nameKey
 users/{uid}/items/{id}       name, nameKey, unit
-users/{uid}/income/{id}      date, amount, note
-users/{uid}/purchases/{id}   date, storeId, storeName, total,
+users/{uid}/income/{id}      day, date, amount, note
+users/{uid}/purchases/{id}   day, date, storeId, storeName, total,
                              lines[{ itemId, itemName, unit, qty, amount }]
 ```
+
+`day` is the calendar day (`"2026-11-17"`) an entry belongs to. The app shows
+and filters by it, so an entry appears on the same day in every timezone and
+on every device; `date` is 12:00 UTC of that day, used for ordering.
 
 Store and item names are copied into each purchase at save time, so history
 still reads correctly after something is renamed or deleted.

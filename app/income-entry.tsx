@@ -23,6 +23,7 @@ import {
   SectionTitle,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
+import { fromDayString } from '@/lib/day';
 import { confirmAction } from '@/lib/dialog';
 import { defaultEntryDate, parseAmount } from '@/lib/format';
 import { createIncome, deleteIncome, getIncome, updateIncome } from '@/lib/income';
@@ -34,17 +35,14 @@ export default function IncomeEntryModal() {
   const uid = user?.uid ?? null;
   const router = useRouter();
   const period = usePeriod();
-  const { id, date: dateParam } = useLocalSearchParams<{ id?: string; date?: string }>();
+  const { id, day: dayParam } = useLocalSearchParams<{ id?: string; day?: string }>();
   const isEditing = !!id;
 
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [date, setDate] = useState(() => {
-    const fromParam = dateParam ? new Date(dateParam) : null;
-    return fromParam && !Number.isNaN(fromParam.getTime())
-      ? fromParam
-      : defaultEntryDate(period.start, period.end);
-  });
+  const [date, setDate] = useState(
+    () => fromDayString(dayParam) ?? defaultEntryDate(period.start, period.end)
+  );
 
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
@@ -88,6 +86,8 @@ export default function IncomeEntryModal() {
       const input = { date, amount: Math.round(parsed * 100) / 100, note };
       if (id) await updateIncome(uid, id, input);
       else await createIncome(uid, input);
+      // Make sure the saved entry is on screen when the form closes.
+      period.showDate(date);
       router.back();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save.');

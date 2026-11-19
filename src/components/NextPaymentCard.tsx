@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
+import { toDayString } from '@/lib/day';
 import { addDays, daysBetween, formatDate } from '@/lib/format';
 import { PAYMENT_CYCLE_DAYS, useLatestIncome } from '@/lib/income';
 import { colors, radius, shadow, spacing } from '@/theme';
@@ -45,7 +46,7 @@ export function NextPaymentCard() {
         onPress={() =>
           router.push({
             pathname: '/income-entry',
-            params: { date: due.toISOString() },
+            params: { day: toDayString(due) },
           })
         }
         style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]}
