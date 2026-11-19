@@ -23,14 +23,11 @@ import {
   nameTaken,
   renameStore,
   Store,
-  toUnit,
-  Unit,
   updateItem,
   useItems,
   useStores,
 } from '@/lib/catalog';
 import { confirmAction, promptText } from '@/lib/dialog';
-import { UnitToggle } from '@/components/UnitToggle';
 import { colors, radius, spacing } from '@/theme';
 
 type Tab = 'stores' | 'items';
@@ -171,7 +168,6 @@ function ItemsTab() {
   const { data, loading, error } = useItems(uid);
 
   const [name, setName] = useState('');
-  const [unit, setUnit] = useState<Unit>('ea');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -184,7 +180,8 @@ function ItemsTab() {
     }
     setBusy(true);
     try {
-      await createItem(uid, name, unit);
+      // ea / case is chosen per purchase; the item remembers the last one used.
+      await createItem(uid, name, 'ea');
       setName('');
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Could not add it.');
@@ -193,13 +190,19 @@ function ItemsTab() {
     }
   }
 
-  async function changeUnit(item: Item, next: Unit) {
-    if (!uid || next === item.unit) return;
-    try {
-      await updateItem(uid, item.id, item.name, next);
-    } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Could not update it.');
-    }
+  function rename(item: Item) {
+    promptText('Rename item', item.name, async (next) => {
+      if (!uid || !next.trim()) return;
+      if (nameTaken(data, next, item.id)) {
+        setFormError('You already have an item with that name.');
+        return;
+      }
+      try {
+        await updateItem(uid, item.id, next, item.unit);
+      } catch (e) {
+        setFormError(e instanceof Error ? e.message : 'Could not rename it.');
+      }
+    });
   }
 
   function remove(item: Item) {
@@ -220,11 +223,8 @@ function ItemsTab() {
           style={styles.input}
           autoCapitalize="words"
           returnKeyType="done"
+          onSubmitEditing={add}
         />
-        <View style={styles.unitRow}>
-          <Text style={styles.unitLabel}>Usually bought by</Text>
-          <UnitToggle value={unit} onChange={setUnit} />
-        </View>
         <Button title="Add item" onPress={add} loading={busy} disabled={!name.trim()} />
       </Card>
 
@@ -247,10 +247,9 @@ function ItemsTab() {
                   <Text style={styles.rowLabel}>{item.name}</Text>
                 </View>
                 <View style={styles.rowActions}>
-                  <UnitToggle
-                    value={toUnit(item.unit)}
-                    onChange={(next) => changeUnit(item, next)}
-                  />
+                  <Pressable onPress={() => rename(item)} hitSlop={8}>
+                    <Text style={styles.action}>Rename</Text>
+                  </Pressable>
                   <Pressable onPress={() => remove(item)} hitSlop={8}>
                     <Text style={styles.destructive}>Delete</Text>
                   </Pressable>
@@ -295,8 +294,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  unitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  unitLabel: { fontSize: 13, fontWeight: '600', color: colors.muted },
   divider: { height: 1, backgroundColor: colors.border },
   row: {
     flexDirection: 'row',

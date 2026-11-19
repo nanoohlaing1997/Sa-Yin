@@ -32,6 +32,7 @@ import {
   createItem,
   createStore,
   Item,
+  setItemUnit,
   setStoreTaxRate,
   toUnit,
   Unit,
@@ -242,6 +243,13 @@ export default function PurchaseModal() {
       const store = stores.data.find((s) => s.id === storeId);
       if (store && store.taxRate !== taxRate) {
         setStoreTaxRate(uid, storeId, taxRate).catch(() => undefined);
+      }
+      // Each item remembers the unit it was last bought in.
+      for (const line of parsed) {
+        const item = items.data.find((it) => it.id === line.itemId);
+        if (item && toUnit(item.unit) !== line.unit) {
+          setItemUnit(uid, item.id, line.unit).catch(() => undefined);
+        }
       }
 
       // Make sure the saved entry is on screen when the form closes.
@@ -492,15 +500,11 @@ export default function PurchaseModal() {
         visible={!!itemPickerFor}
         title="Item"
         searchPlaceholder="Search or type a new item"
-        options={items.data.map((item) => ({
-          id: item.id,
-          label: item.name,
-          hint: `by ${toUnit(item.unit)}`,
-        }))}
+        options={items.data.map((item) => ({ id: item.id, label: item.name }))}
         selectedId={activeLine?.itemId}
         onCreate={async (name) => {
           if (!uid || !itemPickerFor) return;
-          // New items start as "ea"; the line's ea/case toggle can change it.
+          // New items start as "ea"; the line's ea / case toggle changes it.
           const item = await createItem(uid, name, 'ea');
           chooseItem(itemPickerFor, item);
         }}

@@ -148,6 +148,11 @@ export function nameTaken(list: { name: string }[], name: string, skipId?: strin
   return list.some((entry) => key(entry.name) === k && (entry as Store).id !== skipId);
 }
 
+/** Remember the unit (ea / case) last used for an item in a purchase. */
+export async function setItemUnit(uid: string, id: string, unit: Unit): Promise<void> {
+  await updateDoc(doc(db, 'users', uid, 'items', id), { unit });
+}
+
 /** Remember the tax % used at a store so the next purchase there starts with it. */
 export async function setStoreTaxRate(uid: string, id: string, taxRate: number): Promise<void> {
   await updateDoc(doc(db, 'users', uid, 'stores', id), { taxRate });
