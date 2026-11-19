@@ -81,7 +81,7 @@ export default function IncomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   content: { paddingBottom: 150 },
-  body: { paddingHorizontal: spacing(2), gap: spacing(1.5), marginTop: spacing(2) },
+  body: { paddingHorizontal: spacing(2), gap: spacing(1.5), marginTop: spacing(0.5) },
   totalCard: {
     alignItems: 'center',
     backgroundColor: colors.card,

@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui';
 import { authErrorMessage, OWNER_EMAIL, useAuth } from '@/lib/auth-context';
-import { colors, radius, spacing } from '@/theme';
+import { colors, radius, shadow, spacing } from '@/theme';
 
 /** Password-only unlock screen; shown until this device has signed in once. */
 export function SignInScreen() {
@@ -35,8 +35,6 @@ export function SignInScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.circleA} />
-      <View style={styles.circleB} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -77,37 +75,19 @@ export function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.primary, overflow: 'hidden' },
+  safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
-  circleA: {
-    position: 'absolute',
-    top: -80,
-    right: -70,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-  },
-  circleB: {
-    position: 'absolute',
-    bottom: -90,
-    left: -60,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-  },
   center: { flex: 1, justifyContent: 'center', padding: spacing(3) },
-  logo: { width: 84, height: 84, borderRadius: 22, alignSelf: 'center' },
+  logo: { width: 88, height: 88, borderRadius: 22, alignSelf: 'center' },
   title: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 30,
     fontWeight: '800',
     textAlign: 'center',
     marginTop: spacing(1.5),
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: colors.muted,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
@@ -116,6 +96,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.xl,
+    ...shadow,
     padding: spacing(2.5),
     gap: spacing(1.25),
   },
@@ -134,7 +115,7 @@ const styles = StyleSheet.create({
   inputError: { borderColor: colors.danger },
   error: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   hint: {
-    color: 'rgba(255,255,255,0.8)',
+    color: colors.muted,
     fontSize: 13,
     textAlign: 'center',
     marginTop: spacing(2),

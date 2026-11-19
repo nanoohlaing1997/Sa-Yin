@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CalendarModal } from '@/components/DatePickerField';
 import { TabIcon } from '@/components/TabIcons';
 import { PeriodMode, usePeriod } from '@/lib/period-context';
-import { radius, spacing } from '@/theme';
+import { colors, radius, shadow, spacing } from '@/theme';
 
 const MODES: { key: PeriodMode; label: string }[] = [
   { key: 'month', label: 'Month' },
@@ -106,42 +106,43 @@ function Arrow({
         disabled && { opacity: 0.3 },
       ]}
     >
-      <TabIcon name={icon} color="#fff" size={20} />
+      <TabIcon name={icon} color={colors.primary} size={20} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing(1) },
+  wrap: { gap: spacing(1.25) },
   toggle: {
     flexDirection: 'row',
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.14)',
+    backgroundColor: colors.border,
     borderRadius: radius.pill,
     padding: 3,
   },
   toggleItem: {
-    paddingHorizontal: spacing(2),
-    paddingVertical: spacing(0.6),
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing(0.85),
     borderRadius: radius.pill,
   },
-  toggleItemActive: { backgroundColor: '#fff' },
-  toggleText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
-  toggleTextActive: { color: '#9C0F5C' },
+  toggleItemActive: { backgroundColor: colors.card, ...shadow, shadowOpacity: 0.1 },
+  toggleText: { fontSize: 14, fontWeight: '700', color: colors.muted },
+  toggleTextActive: { color: colors.text },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   center: { flex: 1, alignItems: 'center', paddingHorizontal: spacing(1) },
-  label: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
-  caption: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.75)', marginTop: 1 },
+  label: { fontSize: 18, fontWeight: '800', color: colors.text, letterSpacing: -0.2 },
+  caption: { fontSize: 11, fontWeight: '600', color: colors.muted, marginTop: 1 },
   arrow: {
     width: 38,
     height: 38,
     borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.45)',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

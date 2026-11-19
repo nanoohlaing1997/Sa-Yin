@@ -171,14 +171,14 @@ function trimNumber(value: number): string {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   content: { paddingBottom: 150 },
-  body: { paddingHorizontal: spacing(2), gap: spacing(1.5), marginTop: spacing(2) },
+  body: { paddingHorizontal: spacing(2), gap: spacing(1.5), marginTop: spacing(0.5) },
   manageBtn: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: spacing(1.5),
     paddingVertical: spacing(0.75),
     borderRadius: radius.pill,
   },
-  manage: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  manage: { color: colors.primary, fontSize: 14, fontWeight: '700' },
   totalCard: { alignItems: 'center', paddingVertical: spacing(2.5) },
   totalLabel: { fontSize: 13, color: colors.muted, fontWeight: '600' },
   totalValue: { fontSize: 36, fontWeight: '800', color: colors.text, marginTop: spacing(0.5) },
