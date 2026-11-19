@@ -11,7 +11,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card, EmptyState, ErrorBanner, Loader, ModalHeader } from '@/components/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  ErrorPopup,
+  Loader,
+  ModalHeader,
+} from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
 import { useClose } from '@/lib/navigation';
 import {
@@ -113,7 +121,8 @@ function StoresTab() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <ErrorBanner message={formError ?? error} />
+      <ErrorBanner message={error} />
+      <ErrorPopup message={formError} title="Couldn’t do that" onClose={() => setFormError(null)} />
 
       <Card style={styles.form}>
         <TextInput
@@ -212,7 +221,8 @@ function ItemsTab() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <ErrorBanner message={formError ?? error} />
+      <ErrorBanner message={error} />
+      <ErrorPopup message={formError} title="Couldn’t do that" onClose={() => setFormError(null)} />
 
       <Card style={styles.form}>
         <TextInput

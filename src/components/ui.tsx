@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -86,6 +87,42 @@ export function ErrorBanner({ message }: { message: string | null }) {
     <View style={styles.banner}>
       <Text style={styles.bannerText}>{message}</Text>
     </View>
+  );
+}
+
+/**
+ * Centred pop-up for a problem the user needs to fix (e.g. a form that can't
+ * be saved yet). Shown while `message` is set; OK or tapping outside clears it.
+ */
+export function ErrorPopup({
+  message,
+  title = 'Can’t save yet',
+  onClose,
+}: {
+  message: string | null;
+  title?: string;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={!!message} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.popupBackdrop} onPress={onClose} accessibilityLabel="Dismiss">
+        {/* Inner Pressable keeps taps on the card from dismissing it. */}
+        <Pressable style={styles.popupCard} onPress={() => undefined} accessibilityRole="alert">
+          <View style={styles.popupIcon}>
+            <Text style={styles.popupEmoji}>⚠️</Text>
+          </View>
+          <Text style={styles.popupTitle}>{title}</Text>
+          <Text style={styles.popupMessage}>{message}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onClose}
+            style={({ pressed }) => [styles.popupButton, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.popupButtonText}>OK</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -236,6 +273,49 @@ const styles = StyleSheet.create({
     marginBottom: spacing(2),
   },
   bannerText: { color: colors.danger, fontSize: 14 },
+  popupBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20,10,35,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing(3),
+  },
+  popupCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    padding: spacing(3),
+    alignItems: 'center',
+    ...shadow,
+  },
+  popupIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FDECEC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing(1.5),
+  },
+  popupEmoji: { fontSize: 26 },
+  popupTitle: { fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' },
+  popupMessage: {
+    fontSize: 15,
+    color: colors.muted,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginTop: spacing(0.75),
+  },
+  popupButton: {
+    alignSelf: 'stretch',
+    marginTop: spacing(2.5),
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing(1.5),
+    alignItems: 'center',
+  },
+  popupButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   empty: { alignItems: 'center', paddingVertical: spacing(3), paddingHorizontal: spacing(2) },
   emptyIcon: {
     width: 56,

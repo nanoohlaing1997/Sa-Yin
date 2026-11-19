@@ -18,7 +18,7 @@ import { TabIcon } from '@/components/TabIcons';
 import {
   Button,
   Card,
-  ErrorBanner,
+  ErrorPopup,
   FormFooter,
   Loader,
   ModalHeader,
@@ -292,7 +292,6 @@ export default function PurchaseModal() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <ErrorBanner message={error} />
 
             <SectionTitle>Date</SectionTitle>
             <DatePickerField value={date} onChange={setDate} />
@@ -519,6 +518,7 @@ export default function PurchaseModal() {
         onClose={() => setItemPickerFor(null)}
       />
 
+      <ErrorPopup message={error} onClose={() => setError(null)} />
     </SafeAreaView>
   );
 }

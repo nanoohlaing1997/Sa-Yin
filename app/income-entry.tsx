@@ -16,7 +16,7 @@ import { DatePickerField } from '@/components/DatePickerField';
 import {
   Button,
   Card,
-  ErrorBanner,
+  ErrorPopup,
   FormFooter,
   Loader,
   ModalHeader,
@@ -130,7 +130,6 @@ export default function IncomeEntryModal() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <ErrorBanner message={error} />
 
             <View style={styles.hero}>
               <Text style={styles.heroLabel}>Amount received</Text>
@@ -180,6 +179,7 @@ export default function IncomeEntryModal() {
           </FormFooter>
         </KeyboardAvoidingView>
       )}
+      <ErrorPopup message={error} onClose={() => setError(null)} />
     </SafeAreaView>
   );
 }

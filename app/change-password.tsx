@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, ErrorBanner, Field, FormFooter, ModalHeader } from '@/components/ui';
+import { Button, ErrorPopup, Field, FormFooter, ModalHeader } from '@/components/ui';
 import { authErrorMessage, useAuth } from '@/lib/auth-context';
 import { useClose } from '@/lib/navigation';
 import { colors, radius, spacing } from '@/theme';
@@ -73,7 +73,6 @@ export default function ChangePasswordModal() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <ErrorBanner message={error} />
             <Field
               label="Current password"
               value={current}
@@ -115,6 +114,11 @@ export default function ChangePasswordModal() {
           </FormFooter>
         </KeyboardAvoidingView>
       )}
+      <ErrorPopup
+        message={error}
+        title="Password not changed"
+        onClose={() => setError(null)}
+      />
     </SafeAreaView>
   );
 }
