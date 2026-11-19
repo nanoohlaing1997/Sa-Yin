@@ -186,6 +186,8 @@ export default function PurchaseModal() {
       } else {
         await createPurchase(uid, input);
       }
+      // Make sure the saved entry is on screen when the form closes.
+      period.showDate(date);
       router.back();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save.');
