@@ -24,8 +24,9 @@
       html,
       body {
         height: 100%;
-        /* Matches the app background so no white shows at the screen edges. */
-        background-color: #F3F4F8;
+        /* Same white as the tab bar, so if iOS ever sizes the page a little
+           short, the area under the tab bar blends in instead of showing a strip. */
+        background-color: #FFFFFF;
       }
       /* Desktop: grey surround for the centred phone-width column. */
       @media (min-width: 431px) {
