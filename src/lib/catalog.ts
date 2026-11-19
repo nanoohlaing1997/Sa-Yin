@@ -22,8 +22,7 @@ export function toUnit(value: unknown): Unit {
   return value === 'case' ? 'case' : 'ea';
 }
 
-/** A place you buy from. `taxRate` is the last tax % used there. */
-export type Store = { id: string; name: string; taxRate?: number };
+export type Store = { id: string; name: string };
 export type Item = { id: string; name: string; unit: string };
 
 function storeCollection(uid: string) {
@@ -69,7 +68,6 @@ function useNamedCollection<T>(
 const toStore = (id: string, data: Record<string, unknown>): Store => ({
   id,
   name: typeof data.name === 'string' ? data.name : '',
-  taxRate: typeof data.taxRate === 'number' ? data.taxRate : undefined,
 });
 
 const toItem = (id: string, data: Record<string, unknown>): Item => ({
@@ -151,9 +149,4 @@ export function nameTaken(list: { name: string }[], name: string, skipId?: strin
 /** Remember the unit (ea / case) last used for an item in a purchase. */
 export async function setItemUnit(uid: string, id: string, unit: Unit): Promise<void> {
   await updateDoc(doc(db, 'users', uid, 'items', id), { unit });
-}
-
-/** Remember the tax % used at a store so the next purchase there starts with it. */
-export async function setStoreTaxRate(uid: string, id: string, taxRate: number): Promise<void> {
-  await updateDoc(doc(db, 'users', uid, 'stores', id), { taxRate });
 }

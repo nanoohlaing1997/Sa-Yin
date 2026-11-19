@@ -30,6 +30,10 @@ export type PurchaseLine = {
   unitPrice: number;
   /** unitPrice × qty, before tax. */
   amount: number;
+  /** This item's tax rate as a percentage, typed by the user (0 = no tax). */
+  taxRate: number;
+  /** amount × taxRate. */
+  tax: number;
 };
 
 /** A single supplies purchase: one date, one store, many lines. */
@@ -41,20 +45,27 @@ export type Purchase = {
   lines: PurchaseLine[];
   /** Sum of line amounts, before tax. */
   subtotal: number;
-  /** Tax rate as a percentage, e.g. 8.25. */
-  taxRate: number;
+  /** Sum of line taxes. */
   tax: number;
   /** subtotal + tax — what was actually paid. */
   total: number;
 };
 
-/** What the form provides; amounts and totals are computed on save. */
+/** One line as the form provides it; amounts and totals are computed on save. */
+export type PurchaseLineInput = {
+  itemId: string;
+  itemName: string;
+  unit: string;
+  qty: number;
+  unitPrice: number;
+  taxRate: number;
+};
+
 export type PurchaseInput = {
   date: Date;
   storeId: string;
   storeName: string;
-  lines: { itemId: string; itemName: string; unit: string; qty: number; unitPrice: number }[];
-  taxRate: number;
+  lines: PurchaseLineInput[];
 };
 
 /** Round to cents. */
@@ -62,15 +73,19 @@ export function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-/** Line amounts, subtotal, tax and total for a purchase. */
-export function computeTotals(
-  lines: { qty: number; unitPrice: number }[],
-  taxRate: number
-): { amounts: number[]; subtotal: number; tax: number; total: number } {
+/** Per-line amount and tax, plus the purchase subtotal, tax and total. */
+export function computeTotals(lines: { qty: number; unitPrice: number; taxRate: number }[]): {
+  amounts: number[];
+  taxes: number[];
+  subtotal: number;
+  tax: number;
+  total: number;
+} {
   const amounts = lines.map((l) => round2(l.unitPrice * l.qty));
+  const taxes = lines.map((l, i) => round2((amounts[i] * l.taxRate) / 100));
   const subtotal = round2(amounts.reduce((sum, a) => sum + a, 0));
-  const tax = round2((subtotal * taxRate) / 100);
-  return { amounts, subtotal, tax, total: round2(subtotal + tax) };
+  const tax = round2(taxes.reduce((sum, t) => sum + t, 0));
+  return { amounts, taxes, subtotal, tax, total: round2(subtotal + tax) };
 }
 
 function purchaseCollection(uid: string) {
@@ -90,6 +105,8 @@ function toLine(raw: unknown): PurchaseLine {
     unitPrice:
       typeof data.unitPrice === 'number' ? data.unitPrice : qty > 0 ? round2(amount / qty) : amount,
     amount,
+    taxRate: typeof data.taxRate === 'number' ? data.taxRate : 0,
+    tax: typeof data.tax === 'number' ? data.tax : 0,
   };
 }
 
@@ -99,8 +116,8 @@ function toPurchase(id: string, data: Record<string, unknown>): Purchase {
     typeof data.subtotal === 'number'
       ? data.subtotal
       : round2(lines.reduce((sum, l) => sum + l.amount, 0));
-  const taxRate = typeof data.taxRate === 'number' ? data.taxRate : 0;
-  const tax = typeof data.tax === 'number' ? data.tax : 0;
+  const tax =
+    typeof data.tax === 'number' ? data.tax : round2(lines.reduce((sum, l) => sum + l.tax, 0));
   return {
     id,
     date: readDay(data),
@@ -108,14 +125,13 @@ function toPurchase(id: string, data: Record<string, unknown>): Purchase {
     storeName: typeof data.storeName === 'string' ? data.storeName : 'Unknown store',
     lines,
     subtotal,
-    taxRate,
     tax,
     total: typeof data.total === 'number' ? data.total : round2(subtotal + tax),
   };
 }
 
 function serialise(input: PurchaseInput) {
-  const totals = computeTotals(input.lines, input.taxRate);
+  const totals = computeTotals(input.lines);
   return {
     ...dayFields(input.date),
     storeId: input.storeId,
@@ -127,9 +143,10 @@ function serialise(input: PurchaseInput) {
       qty: line.qty,
       unitPrice: round2(line.unitPrice),
       amount: totals.amounts[i],
+      taxRate: line.taxRate,
+      tax: totals.taxes[i],
     })),
     subtotal: totals.subtotal,
-    taxRate: input.taxRate,
     tax: totals.tax,
     total: totals.total,
   };

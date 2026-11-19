@@ -3,7 +3,6 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { formatRate } from '@/components/TaxPicker';
 import { PeriodSwitcher } from '@/components/PeriodSwitcher';
 import { Card, EmptyState, ErrorBanner, Loader, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
@@ -155,7 +154,7 @@ function TripCard({ purchase, onPress }: { purchase: Purchase; onPress: () => vo
         {purchase.tax > 0 && (
           <View style={styles.lineRow}>
             <Text style={[styles.lineName, styles.taxText]}>Tax</Text>
-            <Text style={styles.lineQty}>{formatRate(purchase.taxRate)}</Text>
+            <Text style={styles.lineQty} />
             <Text style={[styles.lineAmount, styles.taxText]}>{formatMoney(purchase.tax)}</Text>
           </View>
         )}

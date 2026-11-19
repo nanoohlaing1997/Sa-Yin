@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -16,7 +15,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DatePickerField } from '@/components/DatePickerField';
 import { PickerSheet } from '@/components/PickerSheet';
 import { TabIcon } from '@/components/TabIcons';
-import { formatRate, TaxPicker } from '@/components/TaxPicker';
 import {
   Button,
   Card,
@@ -33,14 +31,13 @@ import {
   createStore,
   Item,
   setItemUnit,
-  setStoreTaxRate,
   toUnit,
   Unit,
   useItems,
   useStores,
 } from '@/lib/catalog';
 import { confirmAction } from '@/lib/dialog';
-import { defaultEntryDate, formatMoney, parseAmount } from '@/lib/format';
+import { defaultEntryDate, formatMoney, formatPercent, parseAmount } from '@/lib/format';
 import { usePeriod } from '@/lib/period-context';
 import {
   computeTotals,
@@ -51,9 +48,7 @@ import {
 } from '@/lib/purchases';
 import { colors, radius, spacing } from '@/theme';
 
-const LAST_TAX_KEY = 'sayin.lastTaxRate';
-
-/** A line being edited — price and qty stay as text until save. */
+/** A line being edited — price, qty and tax stay as text until save. */
 type DraftLine = {
   key: string;
   itemId: string;
@@ -62,13 +57,15 @@ type DraftLine = {
   /** Price per unit, as typed. */
   price: string;
   qty: string;
+  /** Tax %, typed by hand; empty means no tax. */
+  tax: string;
 };
 
 let draftCounter = 0;
 const newKey = () => `line-${draftCounter++}`;
 
 function emptyLine(): DraftLine {
-  return { key: newKey(), itemId: '', itemName: '', unit: 'ea', price: '', qty: '1' };
+  return { key: newKey(), itemId: '', itemName: '', unit: 'ea', price: '', qty: '1', tax: '' };
 }
 
 /** Whole-number quantity from the typed text; 0 when empty or invalid. */
@@ -81,6 +78,14 @@ function qtyOf(line: DraftLine): number {
 function priceOf(line: DraftLine): number {
   const n = parseAmount(line.price);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** Tax % from the typed text: 0 when empty, NaN when not a valid rate. */
+function taxOf(line: DraftLine): number {
+  const text = line.tax.replace('%', '').trim();
+  if (!text) return 0;
+  const n = parseAmount(text);
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : NaN;
 }
 
 export default function PurchaseModal() {
@@ -98,26 +103,13 @@ export default function PurchaseModal() {
   const [storeId, setStoreId] = useState('');
   const [storeName, setStoreName] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
-  const [taxRate, setTaxRate] = useState(0);
 
   const [storePickerOpen, setStorePickerOpen] = useState(false);
   const [itemPickerFor, setItemPickerFor] = useState<string | null>(null);
-  const [taxPickerOpen, setTaxPickerOpen] = useState(false);
 
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // New purchases start with the last tax rate used on this device.
-  useEffect(() => {
-    if (isEditing) return;
-    AsyncStorage.getItem(LAST_TAX_KEY)
-      .then((raw) => {
-        const rate = raw === null ? NaN : Number(raw);
-        if (Number.isFinite(rate)) setTaxRate(rate);
-      })
-      .catch(() => undefined);
-  }, [isEditing]);
 
   useEffect(() => {
     if (!uid || !id) return;
@@ -133,7 +125,6 @@ export default function PurchaseModal() {
         setDate(purchase.date);
         setStoreId(purchase.storeId);
         setStoreName(purchase.storeName);
-        setTaxRate(purchase.taxRate);
         setLines(
           purchase.lines.map((line) => ({
             key: newKey(),
@@ -142,6 +133,7 @@ export default function PurchaseModal() {
             unit: toUnit(line.unit),
             price: line.unitPrice.toFixed(2),
             qty: String(Math.max(1, Math.round(line.qty))),
+            tax: line.taxRate ? String(line.taxRate) : '',
           }))
         );
       })
@@ -158,8 +150,7 @@ export default function PurchaseModal() {
   }, [uid, id]);
 
   const totals = computeTotals(
-    lines.map((l) => ({ qty: qtyOf(l), unitPrice: priceOf(l) })),
-    taxRate
+    lines.map((l) => ({ qty: qtyOf(l), unitPrice: priceOf(l), taxRate: taxOf(l) || 0 }))
   );
   const pricedCount = lines.filter((l) => priceOf(l) > 0).length;
 
@@ -188,9 +179,6 @@ export default function PurchaseModal() {
     setStoreId(nextId);
     setStoreName(name);
     setStorePickerOpen(false);
-    // Each store remembers the tax % last used there.
-    const remembered = stores.data.find((s) => s.id === nextId)?.taxRate;
-    if (typeof remembered === 'number') setTaxRate(remembered);
   }
 
   async function onSave() {
@@ -224,26 +212,27 @@ export default function PurchaseModal() {
         setError(`Enter a quantity for ${line.itemName}.`);
         return;
       }
+      const taxRate = taxOf(line);
+      if (Number.isNaN(taxRate)) {
+        setError(`Enter a tax % between 0 and 100 for ${line.itemName}, or leave it empty.`);
+        return;
+      }
       parsed.push({
         itemId: line.itemId,
         itemName: line.itemName,
         unit: line.unit,
         qty,
         unitPrice,
+        taxRate,
       });
     }
 
     setSaving(true);
     try {
-      const input = { date, storeId, storeName, lines: parsed, taxRate };
+      const input = { date, storeId, storeName, lines: parsed };
       if (id) await updatePurchase(uid, id, input);
       else await createPurchase(uid, input);
 
-      AsyncStorage.setItem(LAST_TAX_KEY, String(taxRate)).catch(() => undefined);
-      const store = stores.data.find((s) => s.id === storeId);
-      if (store && store.taxRate !== taxRate) {
-        setStoreTaxRate(uid, storeId, taxRate).catch(() => undefined);
-      }
       // Each item remembers the unit it was last bought in.
       for (const line of parsed) {
         const item = items.data.find((it) => it.id === line.itemId);
@@ -327,6 +316,7 @@ export default function PurchaseModal() {
             {lines.map((line, index) => {
               const qty = qtyOf(line);
               const price = priceOf(line);
+              const taxRate = taxOf(line);
               return (
                 <Card key={line.key} style={styles.lineCard}>
                   <View style={styles.lineHeader}>
@@ -415,11 +405,42 @@ export default function PurchaseModal() {
                     </View>
                   </View>
 
+                  <View style={styles.qtyRow}>
+                    <Text style={styles.inputLabel}>Tax</Text>
+                    <View style={[styles.taxBox, Number.isNaN(taxRate) && styles.taxBoxError]}>
+                      <TextInput
+                        value={line.tax}
+                        onChangeText={(value) => patchLine(line.key, { tax: value })}
+                        keyboardType="decimal-pad"
+                        inputMode="decimal"
+                        placeholder="0"
+                        placeholderTextColor={colors.muted}
+                        style={styles.taxInput}
+                        accessibilityLabel={`Tax percent for item ${index + 1}`}
+                      />
+                      <Text style={styles.taxPercent}>%</Text>
+                    </View>
+                  </View>
+
                   <View style={styles.review}>
-                    <Text style={styles.reviewCalc}>
-                      {qty} {line.unit} × {formatMoney(price)}
-                    </Text>
-                    <Text style={styles.reviewAmount}>{formatMoney(totals.amounts[index])}</Text>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewCalc}>
+                        {qty} {line.unit} × {formatMoney(price)}
+                      </Text>
+                      <Text style={styles.reviewValue}>{formatMoney(totals.amounts[index])}</Text>
+                    </View>
+                    {totals.taxes[index] > 0 && (
+                      <View style={styles.reviewRow}>
+                        <Text style={styles.reviewCalc}>Tax {formatPercent(taxRate)}</Text>
+                        <Text style={styles.reviewValue}>+{formatMoney(totals.taxes[index])}</Text>
+                      </View>
+                    )}
+                    <View style={[styles.reviewRow, styles.reviewTotalRow]}>
+                      <Text style={styles.reviewTotalLabel}>Item total</Text>
+                      <Text style={styles.reviewAmount}>
+                        {formatMoney(totals.amounts[index] + totals.taxes[index])}
+                      </Text>
+                    </View>
                   </View>
                 </Card>
               );
@@ -433,19 +454,6 @@ export default function PurchaseModal() {
               <Text style={styles.addLineText}>+ Add another item</Text>
             </Pressable>
 
-            <SectionTitle>Tax</SectionTitle>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Tax ${formatRate(taxRate)}. Change`}
-              onPress={() => setTaxPickerOpen(true)}
-              style={({ pressed }) => [styles.select, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={styles.selectText}>
-                {taxRate === 0 ? 'No tax' : formatRate(taxRate)}
-              </Text>
-              <Text style={styles.selectHint}>Change</Text>
-              <TabIcon name="chevron-right" color={colors.muted} size={18} />
-            </Pressable>
           </ScrollView>
 
           <FormFooter>
@@ -457,9 +465,7 @@ export default function PurchaseModal() {
                 <Text style={styles.sumValue}>{formatMoney(totals.subtotal)}</Text>
               </View>
               <View style={styles.sumRow}>
-                <Text style={styles.sumLabel}>
-                  Tax{taxRate === 0 ? '' : ` (${formatRate(taxRate)})`}
-                </Text>
+                <Text style={styles.sumLabel}>Tax</Text>
                 <Text style={styles.sumValue}>{formatMoney(totals.tax)}</Text>
               </View>
               <View style={styles.sumDivider} />
@@ -481,11 +487,7 @@ export default function PurchaseModal() {
         visible={storePickerOpen}
         title="Store"
         searchPlaceholder="Search or type a new store"
-        options={stores.data.map((store) => ({
-          id: store.id,
-          label: store.name,
-          hint: typeof store.taxRate === 'number' ? `Tax ${formatRate(store.taxRate)}` : undefined,
-        }))}
+        options={stores.data.map((store) => ({ id: store.id, label: store.name }))}
         selectedId={storeId}
         onCreate={async (name) => {
           if (!uid) return;
@@ -516,15 +518,6 @@ export default function PurchaseModal() {
         onClose={() => setItemPickerFor(null)}
       />
 
-      <TaxPicker
-        visible={taxPickerOpen}
-        value={taxRate}
-        onPick={(rate) => {
-          setTaxRate(rate);
-          setTaxPickerOpen(false);
-        }}
-        onClose={() => setTaxPickerOpen(false)}
-      />
     </SafeAreaView>
   );
 }
@@ -549,7 +542,6 @@ const styles = StyleSheet.create({
     gap: spacing(1),
   },
   selectText: { flex: 1, fontSize: 16, color: colors.text, fontWeight: '600' },
-  selectHint: { fontSize: 14, color: colors.primary, fontWeight: '700' },
   placeholder: { color: colors.muted, fontWeight: '400' },
   lineCard: { marginBottom: spacing(1.25), gap: spacing(1.5) },
   lineHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -605,16 +597,43 @@ const styles = StyleSheet.create({
     ...webNoOutline,
   },
   review: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: colors.primarySoft,
     borderRadius: radius.sm,
     paddingHorizontal: spacing(1.5),
     paddingVertical: spacing(1),
+    gap: spacing(0.5),
   },
+  reviewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   reviewCalc: { fontSize: 14, fontWeight: '600', color: colors.muted },
+  reviewValue: { fontSize: 14, fontWeight: '700', color: colors.text },
+  reviewTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(214,23,127,0.18)',
+    paddingTop: spacing(0.75),
+    marginTop: spacing(0.25),
+  },
+  reviewTotalLabel: { fontSize: 14, fontWeight: '800', color: colors.text },
   reviewAmount: { fontSize: 17, fontWeight: '800', color: colors.text },
+  taxBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing(1.25),
+  },
+  taxBoxError: { borderColor: colors.danger },
+  taxInput: {
+    width: 64,
+    textAlign: 'right',
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    paddingVertical: spacing(0.75),
+    ...webNoOutline,
+  },
+  taxPercent: { fontSize: 16, fontWeight: '800', color: colors.muted, marginLeft: 4 },
   addLine: {
     backgroundColor: colors.card,
     borderWidth: 1,
