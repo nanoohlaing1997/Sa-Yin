@@ -13,20 +13,17 @@ import { useEffect, useState } from 'react';
 
 import { db } from './firebase';
 
-/** Units a sushi bar actually buys in. Free text is allowed too. */
-export const UNIT_SUGGESTIONS = [
-  'case',
-  'pack',
-  'ea',
-  'lbs',
-  'set',
-  'box',
-  'ct',
-  'bottle',
-  'bag',
-];
+/** How items are bought. */
+export const UNITS = ['ea', 'case'] as const;
+export type Unit = (typeof UNITS)[number];
 
-export type Store = { id: string; name: string };
+/** "ea" or "case"; anything else (older items) counts as "ea". */
+export function toUnit(value: unknown): Unit {
+  return value === 'case' ? 'case' : 'ea';
+}
+
+/** A place you buy from. `taxRate` is the last tax % used there. */
+export type Store = { id: string; name: string; taxRate?: number };
 export type Item = { id: string; name: string; unit: string };
 
 function storeCollection(uid: string) {
@@ -72,12 +69,13 @@ function useNamedCollection<T>(
 const toStore = (id: string, data: Record<string, unknown>): Store => ({
   id,
   name: typeof data.name === 'string' ? data.name : '',
+  taxRate: typeof data.taxRate === 'number' ? data.taxRate : undefined,
 });
 
 const toItem = (id: string, data: Record<string, unknown>): Item => ({
   id,
   name: typeof data.name === 'string' ? data.name : '',
-  unit: typeof data.unit === 'string' ? data.unit : 'ea',
+  unit: toUnit(data.unit),
 });
 
 export function useStores(uid: string | null): ListState<Store> {
@@ -148,4 +146,9 @@ export async function deleteItem(uid: string, id: string): Promise<void> {
 export function nameTaken(list: { name: string }[], name: string, skipId?: string): boolean {
   const k = key(name);
   return list.some((entry) => key(entry.name) === k && (entry as Store).id !== skipId);
+}
+
+/** Remember the tax % used at a store so the next purchase there starts with it. */
+export async function setStoreTaxRate(uid: string, id: string, taxRate: number): Promise<void> {
+  await updateDoc(doc(db, 'users', uid, 'stores', id), { taxRate });
 }

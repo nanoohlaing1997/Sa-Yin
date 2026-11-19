@@ -10,8 +10,9 @@ with the owner account's password once per device; only the email is in `.env`.
 ## Features
 
 - **Franchise income** — record each payment you receive; see the monthly total
-- **Supplies purchases** — pick the store, then add each item with quantity,
-  unit and amount; see totals by store and by item
+- **Supplies purchases** — pick the store, then each item's price, ea/case and
+  quantity (− / +); tax % per purchase (remembered per store) with a subtotal,
+  tax and total breakdown; see totals by store and by item
 - **Home** — profit (income − supplies), money in / out, supplies by store,
   and recent activity
 - Manage your lists of stores and items (units like case, lbs, pack)
@@ -82,11 +83,12 @@ If you edit `.env`, restart with `npx expo start -c` to clear the Metro cache.
 ## Data model
 
 ```
-users/{uid}/stores/{id}      name, nameKey
-users/{uid}/items/{id}       name, nameKey, unit
+users/{uid}/stores/{id}      name, nameKey, taxRate (last tax % used there)
+users/{uid}/items/{id}       name, nameKey, unit ('ea' | 'case')
 users/{uid}/income/{id}      day, date, amount, note
-users/{uid}/purchases/{id}   day, date, storeId, storeName, total,
-                             lines[{ itemId, itemName, unit, qty, amount }]
+users/{uid}/purchases/{id}   day, date, storeId, storeName,
+                             lines[{ itemId, itemName, unit, qty, unitPrice, amount }],
+                             subtotal, taxRate, tax, total
 ```
 
 `day` is the calendar day (`"2026-11-17"`) an entry belongs to. The app shows

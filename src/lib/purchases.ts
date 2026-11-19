@@ -23,8 +23,12 @@ import { db } from './firebase';
 export type PurchaseLine = {
   itemId: string;
   itemName: string;
+  /** "ea" or "case" (older records may hold other units). */
   unit: string;
   qty: number;
+  /** Price paid per unit. */
+  unitPrice: number;
+  /** unitPrice × qty, before tax. */
   amount: number;
 };
 
@@ -35,55 +39,99 @@ export type Purchase = {
   storeId: string;
   storeName: string;
   lines: PurchaseLine[];
+  /** Sum of line amounts, before tax. */
+  subtotal: number;
+  /** Tax rate as a percentage, e.g. 8.25. */
+  taxRate: number;
+  tax: number;
+  /** subtotal + tax — what was actually paid. */
   total: number;
 };
 
-export type PurchaseInput = Omit<Purchase, 'id' | 'total'>;
+/** What the form provides; amounts and totals are computed on save. */
+export type PurchaseInput = {
+  date: Date;
+  storeId: string;
+  storeName: string;
+  lines: { itemId: string; itemName: string; unit: string; qty: number; unitPrice: number }[];
+  taxRate: number;
+};
+
+/** Round to cents. */
+export function round2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/** Line amounts, subtotal, tax and total for a purchase. */
+export function computeTotals(
+  lines: { qty: number; unitPrice: number }[],
+  taxRate: number
+): { amounts: number[]; subtotal: number; tax: number; total: number } {
+  const amounts = lines.map((l) => round2(l.unitPrice * l.qty));
+  const subtotal = round2(amounts.reduce((sum, a) => sum + a, 0));
+  const tax = round2((subtotal * taxRate) / 100);
+  return { amounts, subtotal, tax, total: round2(subtotal + tax) };
+}
 
 function purchaseCollection(uid: string) {
   return collection(db, 'users', uid, 'purchases');
 }
 
-export function lineTotal(lines: PurchaseLine[]): number {
-  return lines.reduce((sum, line) => sum + line.amount, 0);
-}
-
 function toLine(raw: unknown): PurchaseLine {
   const data = (raw ?? {}) as Record<string, unknown>;
+  const qty = typeof data.qty === 'number' ? data.qty : 0;
+  const amount = typeof data.amount === 'number' ? data.amount : 0;
   return {
     itemId: typeof data.itemId === 'string' ? data.itemId : '',
     itemName: typeof data.itemName === 'string' ? data.itemName : 'Unknown item',
     unit: typeof data.unit === 'string' ? data.unit : 'ea',
-    qty: typeof data.qty === 'number' ? data.qty : 0,
-    amount: typeof data.amount === 'number' ? data.amount : 0,
+    qty,
+    // Older records only stored the line amount.
+    unitPrice:
+      typeof data.unitPrice === 'number' ? data.unitPrice : qty > 0 ? round2(amount / qty) : amount,
+    amount,
   };
 }
 
 function toPurchase(id: string, data: Record<string, unknown>): Purchase {
   const lines = Array.isArray(data.lines) ? data.lines.map(toLine) : [];
+  const subtotal =
+    typeof data.subtotal === 'number'
+      ? data.subtotal
+      : round2(lines.reduce((sum, l) => sum + l.amount, 0));
+  const taxRate = typeof data.taxRate === 'number' ? data.taxRate : 0;
+  const tax = typeof data.tax === 'number' ? data.tax : 0;
   return {
     id,
     date: readDay(data),
     storeId: typeof data.storeId === 'string' ? data.storeId : '',
     storeName: typeof data.storeName === 'string' ? data.storeName : 'Unknown store',
     lines,
-    total: typeof data.total === 'number' ? data.total : lineTotal(lines),
+    subtotal,
+    taxRate,
+    tax,
+    total: typeof data.total === 'number' ? data.total : round2(subtotal + tax),
   };
 }
 
 function serialise(input: PurchaseInput) {
+  const totals = computeTotals(input.lines, input.taxRate);
   return {
     ...dayFields(input.date),
     storeId: input.storeId,
     storeName: input.storeName,
-    lines: input.lines.map((line) => ({
+    lines: input.lines.map((line, i) => ({
       itemId: line.itemId,
       itemName: line.itemName,
       unit: line.unit,
       qty: line.qty,
-      amount: line.amount,
+      unitPrice: round2(line.unitPrice),
+      amount: totals.amounts[i],
     })),
-    total: lineTotal(input.lines),
+    subtotal: totals.subtotal,
+    taxRate: input.taxRate,
+    tax: totals.tax,
+    total: totals.total,
   };
 }
 

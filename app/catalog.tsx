@@ -23,12 +23,14 @@ import {
   nameTaken,
   renameStore,
   Store,
-  UNIT_SUGGESTIONS,
+  toUnit,
+  Unit,
   updateItem,
   useItems,
   useStores,
 } from '@/lib/catalog';
 import { confirmAction, promptText } from '@/lib/dialog';
+import { UnitToggle } from '@/components/UnitToggle';
 import { colors, radius, spacing } from '@/theme';
 
 type Tab = 'stores' | 'items';
@@ -169,7 +171,7 @@ function ItemsTab() {
   const { data, loading, error } = useItems(uid);
 
   const [name, setName] = useState('');
-  const [unit, setUnit] = useState('case');
+  const [unit, setUnit] = useState<Unit>('ea');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -191,15 +193,13 @@ function ItemsTab() {
     }
   }
 
-  function changeUnit(item: Item) {
-    promptText(`Unit for ${item.name} — e.g. ${UNIT_SUGGESTIONS.slice(0, 4).join(', ')}`, item.unit, async (next) => {
-      if (!uid || !next.trim()) return;
-      try {
-        await updateItem(uid, item.id, item.name, next);
-      } catch (e) {
-        setFormError(e instanceof Error ? e.message : 'Could not update it.');
-      }
-    });
+  async function changeUnit(item: Item, next: Unit) {
+    if (!uid || next === item.unit) return;
+    try {
+      await updateItem(uid, item.id, item.name, next);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Could not update it.');
+    }
   }
 
   function remove(item: Item) {
@@ -221,21 +221,9 @@ function ItemsTab() {
           autoCapitalize="words"
           returnKeyType="done"
         />
-        <Text style={styles.unitLabel}>How do you buy it?</Text>
-        <View style={styles.units}>
-          {UNIT_SUGGESTIONS.map((option) => (
-            <Pressable
-              key={option}
-              accessibilityRole="button"
-              accessibilityState={{ selected: unit === option }}
-              onPress={() => setUnit(option)}
-              style={[styles.unitChip, unit === option && styles.unitChipActive]}
-            >
-              <Text style={[styles.unitText, unit === option && styles.unitTextActive]}>
-                {option}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={styles.unitRow}>
+          <Text style={styles.unitLabel}>Usually bought by</Text>
+          <UnitToggle value={unit} onChange={setUnit} />
         </View>
         <Button title="Add item" onPress={add} loading={busy} disabled={!name.trim()} />
       </Card>
@@ -257,12 +245,12 @@ function ItemsTab() {
               <View style={styles.row}>
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>{item.name}</Text>
-                  <Text style={styles.rowHint}>per {item.unit}</Text>
                 </View>
                 <View style={styles.rowActions}>
-                  <Pressable onPress={() => changeUnit(item)} hitSlop={8}>
-                    <Text style={styles.action}>Unit</Text>
-                  </Pressable>
+                  <UnitToggle
+                    value={toUnit(item.unit)}
+                    onChange={(next) => changeUnit(item, next)}
+                  />
                   <Pressable onPress={() => remove(item)} hitSlop={8}>
                     <Text style={styles.destructive}>Delete</Text>
                   </Pressable>
@@ -307,19 +295,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  unitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   unitLabel: { fontSize: 13, fontWeight: '600', color: colors.muted },
-  units: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.75) },
-  unitChip: {
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.75),
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bg,
-  },
-  unitChipActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  unitText: { fontSize: 14, color: colors.muted, fontWeight: '600' },
-  unitTextActive: { color: colors.primary },
   divider: { height: 1, backgroundColor: colors.border },
   row: {
     flexDirection: 'row',
@@ -329,7 +306,6 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   rowLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
-  rowHint: { fontSize: 13, color: colors.muted, marginTop: 2 },
   rowActions: { flexDirection: 'row', gap: spacing(1.5) },
   action: { fontSize: 14, color: colors.primary, fontWeight: '600' },
   destructive: { fontSize: 14, color: colors.danger, fontWeight: '600' },
