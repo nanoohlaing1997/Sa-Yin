@@ -13,18 +13,14 @@ import { useEffect, useState } from 'react';
 
 import { db } from './firebase';
 
-/** Units a sushi bar actually buys in. Free text is allowed too. */
-export const UNIT_SUGGESTIONS = [
-  'case',
-  'pack',
-  'ea',
-  'lbs',
-  'set',
-  'box',
-  'ct',
-  'bottle',
-  'bag',
-];
+/** How items are bought. */
+export const UNITS = ['ea', 'case'] as const;
+export type Unit = (typeof UNITS)[number];
+
+/** "ea" or "case"; anything else (older items) counts as "ea". */
+export function toUnit(value: unknown): Unit {
+  return value === 'case' ? 'case' : 'ea';
+}
 
 export type Store = { id: string; name: string };
 export type Item = { id: string; name: string; unit: string };
@@ -77,7 +73,7 @@ const toStore = (id: string, data: Record<string, unknown>): Store => ({
 const toItem = (id: string, data: Record<string, unknown>): Item => ({
   id,
   name: typeof data.name === 'string' ? data.name : '',
-  unit: typeof data.unit === 'string' ? data.unit : 'ea',
+  unit: toUnit(data.unit),
 });
 
 export function useStores(uid: string | null): ListState<Store> {
@@ -148,4 +144,9 @@ export async function deleteItem(uid: string, id: string): Promise<void> {
 export function nameTaken(list: { name: string }[], name: string, skipId?: string): boolean {
   const k = key(name);
   return list.some((entry) => key(entry.name) === k && (entry as Store).id !== skipId);
+}
+
+/** Remember the unit (ea / case) last used for an item in a purchase. */
+export async function setItemUnit(uid: string, id: string, unit: Unit): Promise<void> {
+  await updateDoc(doc(db, 'users', uid, 'items', id), { unit });
 }

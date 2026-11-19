@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -12,8 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card, EmptyState, ErrorBanner, Loader, ModalHeader } from '@/components/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorBanner,
+  ErrorPopup,
+  Loader,
+  ModalHeader,
+} from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
+import { useClose } from '@/lib/navigation';
 import {
   createItem,
   createStore,
@@ -23,7 +31,6 @@ import {
   nameTaken,
   renameStore,
   Store,
-  UNIT_SUGGESTIONS,
   updateItem,
   useItems,
   useStores,
@@ -34,12 +41,12 @@ import { colors, radius, spacing } from '@/theme';
 type Tab = 'stores' | 'items';
 
 export default function CatalogScreen() {
-  const router = useRouter();
+  const close = useClose();
   const [tab, setTab] = useState<Tab>('stores');
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ModalHeader title="Stores & items" onClose={() => router.back()} closeLabel="Done" />
+      <ModalHeader title="Stores & items" onClose={() => close()} closeLabel="Done" />
 
       <View style={styles.segmentWrap}>
         <View style={styles.segment}>
@@ -114,7 +121,8 @@ function StoresTab() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <ErrorBanner message={formError ?? error} />
+      <ErrorBanner message={error} />
+      <ErrorPopup message={formError} title="Couldn’t do that" onClose={() => setFormError(null)} />
 
       <Card style={styles.form}>
         <TextInput
@@ -169,7 +177,6 @@ function ItemsTab() {
   const { data, loading, error } = useItems(uid);
 
   const [name, setName] = useState('');
-  const [unit, setUnit] = useState('case');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -182,7 +189,8 @@ function ItemsTab() {
     }
     setBusy(true);
     try {
-      await createItem(uid, name, unit);
+      // ea / case is chosen per purchase; the item remembers the last one used.
+      await createItem(uid, name, 'ea');
       setName('');
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Could not add it.');
@@ -191,13 +199,17 @@ function ItemsTab() {
     }
   }
 
-  function changeUnit(item: Item) {
-    promptText(`Unit for ${item.name} — e.g. ${UNIT_SUGGESTIONS.slice(0, 4).join(', ')}`, item.unit, async (next) => {
+  function rename(item: Item) {
+    promptText('Rename item', item.name, async (next) => {
       if (!uid || !next.trim()) return;
+      if (nameTaken(data, next, item.id)) {
+        setFormError('You already have an item with that name.');
+        return;
+      }
       try {
-        await updateItem(uid, item.id, item.name, next);
+        await updateItem(uid, item.id, next, item.unit);
       } catch (e) {
-        setFormError(e instanceof Error ? e.message : 'Could not update it.');
+        setFormError(e instanceof Error ? e.message : 'Could not rename it.');
       }
     });
   }
@@ -209,7 +221,8 @@ function ItemsTab() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <ErrorBanner message={formError ?? error} />
+      <ErrorBanner message={error} />
+      <ErrorPopup message={formError} title="Couldn’t do that" onClose={() => setFormError(null)} />
 
       <Card style={styles.form}>
         <TextInput
@@ -220,23 +233,8 @@ function ItemsTab() {
           style={styles.input}
           autoCapitalize="words"
           returnKeyType="done"
+          onSubmitEditing={add}
         />
-        <Text style={styles.unitLabel}>How do you buy it?</Text>
-        <View style={styles.units}>
-          {UNIT_SUGGESTIONS.map((option) => (
-            <Pressable
-              key={option}
-              accessibilityRole="button"
-              accessibilityState={{ selected: unit === option }}
-              onPress={() => setUnit(option)}
-              style={[styles.unitChip, unit === option && styles.unitChipActive]}
-            >
-              <Text style={[styles.unitText, unit === option && styles.unitTextActive]}>
-                {option}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
         <Button title="Add item" onPress={add} loading={busy} disabled={!name.trim()} />
       </Card>
 
@@ -257,11 +255,10 @@ function ItemsTab() {
               <View style={styles.row}>
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>{item.name}</Text>
-                  <Text style={styles.rowHint}>per {item.unit}</Text>
                 </View>
                 <View style={styles.rowActions}>
-                  <Pressable onPress={() => changeUnit(item)} hitSlop={8}>
-                    <Text style={styles.action}>Unit</Text>
+                  <Pressable onPress={() => rename(item)} hitSlop={8}>
+                    <Text style={styles.action}>Rename</Text>
                   </Pressable>
                   <Pressable onPress={() => remove(item)} hitSlop={8}>
                     <Text style={styles.destructive}>Delete</Text>
@@ -307,19 +304,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  unitLabel: { fontSize: 13, fontWeight: '600', color: colors.muted },
-  units: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.75) },
-  unitChip: {
-    paddingHorizontal: spacing(1.5),
-    paddingVertical: spacing(0.75),
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bg,
-  },
-  unitChipActive: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  unitText: { fontSize: 14, color: colors.muted, fontWeight: '600' },
-  unitTextActive: { color: colors.primary },
   divider: { height: 1, backgroundColor: colors.border },
   row: {
     flexDirection: 'row',
@@ -329,7 +313,6 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   rowLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
-  rowHint: { fontSize: 13, color: colors.muted, marginTop: 2 },
   rowActions: { flexDirection: 'row', gap: spacing(1.5) },
   action: { fontSize: 14, color: colors.primary, fontWeight: '600' },
   destructive: { fontSize: 14, color: colors.danger, fontWeight: '600' },

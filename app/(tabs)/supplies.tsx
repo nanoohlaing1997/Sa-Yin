@@ -151,6 +151,13 @@ function TripCard({ purchase, onPress }: { purchase: Purchase; onPress: () => vo
             <Text style={styles.lineAmount}>{formatMoney(line.amount)}</Text>
           </View>
         ))}
+        {purchase.tax > 0 && (
+          <View style={styles.lineRow}>
+            <Text style={[styles.lineName, styles.taxText]}>Tax</Text>
+            <Text style={styles.lineQty} />
+            <Text style={[styles.lineAmount, styles.taxText]}>{formatMoney(purchase.tax)}</Text>
+          </View>
+        )}
       </Card>
     </Pressable>
   );
@@ -199,6 +206,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing(1),
     gap: spacing(1),
   },
+  taxText: { color: colors.muted },
   lineName: { flex: 1, fontSize: 14, color: colors.text },
   lineQty: { fontSize: 13, color: colors.muted, minWidth: 64, textAlign: 'right' },
   lineAmount: {

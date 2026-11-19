@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -16,13 +16,14 @@ import { DatePickerField } from '@/components/DatePickerField';
 import {
   Button,
   Card,
-  ErrorBanner,
+  ErrorPopup,
   FormFooter,
   Loader,
   ModalHeader,
   SectionTitle,
 } from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
+import { useClose } from '@/lib/navigation';
 import { fromDayString } from '@/lib/day';
 import { confirmAction } from '@/lib/dialog';
 import { defaultEntryDate, parseAmount } from '@/lib/format';
@@ -33,7 +34,7 @@ import { colors, radius, spacing } from '@/theme';
 export default function IncomeEntryModal() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
-  const router = useRouter();
+  const close = useClose();
   const period = usePeriod();
   const { id, day: dayParam } = useLocalSearchParams<{ id?: string; day?: string }>();
   const isEditing = !!id;
@@ -88,7 +89,7 @@ export default function IncomeEntryModal() {
       else await createIncome(uid, input);
       // Make sure the saved entry is on screen when the form closes.
       period.showDate(date);
-      router.back();
+      close();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save.');
       setSaving(false);
@@ -100,7 +101,7 @@ export default function IncomeEntryModal() {
     confirmAction('Delete this income?', 'This cannot be undone.', 'Delete', async () => {
       try {
         await deleteIncome(uid, id);
-        router.back();
+        close();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Could not delete.');
       }
@@ -111,7 +112,7 @@ export default function IncomeEntryModal() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ModalHeader
         title={isEditing ? 'Edit income' : 'Franchise income'}
-        onClose={() => router.back()}
+        onClose={() => close()}
         right={
           isEditing ? (
             <Pressable onPress={onDelete} hitSlop={8} accessibilityRole="button">
@@ -129,7 +130,6 @@ export default function IncomeEntryModal() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <ErrorBanner message={error} />
 
             <View style={styles.hero}>
               <Text style={styles.heroLabel}>Amount received</Text>
@@ -179,6 +179,7 @@ export default function IncomeEntryModal() {
           </FormFooter>
         </KeyboardAvoidingView>
       )}
+      <ErrorPopup message={error} onClose={() => setError(null)} />
     </SafeAreaView>
   );
 }

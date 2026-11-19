@@ -107,3 +107,8 @@ export function formatRange(start: Date, end: Date): string {
     ? `${short(start)} – ${short(end)} ${end.getFullYear()}`
     : `${formatDate(start)} – ${formatDate(end)}`;
 }
+
+/** "8.25%", "7%". */
+export function formatPercent(rate: number): string {
+  return `${Number(rate.toFixed(3))}%`;
+}

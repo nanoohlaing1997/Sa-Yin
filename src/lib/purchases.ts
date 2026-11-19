@@ -23,9 +23,17 @@ import { db } from './firebase';
 export type PurchaseLine = {
   itemId: string;
   itemName: string;
+  /** "ea" or "case" (older records may hold other units). */
   unit: string;
   qty: number;
+  /** Price paid per unit. */
+  unitPrice: number;
+  /** unitPrice × qty, before tax. */
   amount: number;
+  /** This item's tax rate as a percentage, typed by the user (0 = no tax). */
+  taxRate: number;
+  /** amount × taxRate. */
+  tax: number;
 };
 
 /** A single supplies purchase: one date, one store, many lines. */
@@ -35,55 +43,112 @@ export type Purchase = {
   storeId: string;
   storeName: string;
   lines: PurchaseLine[];
+  /** Sum of line amounts, before tax. */
+  subtotal: number;
+  /** Sum of line taxes. */
+  tax: number;
+  /** subtotal + tax — what was actually paid. */
   total: number;
 };
 
-export type PurchaseInput = Omit<Purchase, 'id' | 'total'>;
+/** One line as the form provides it; amounts and totals are computed on save. */
+export type PurchaseLineInput = {
+  itemId: string;
+  itemName: string;
+  unit: string;
+  qty: number;
+  unitPrice: number;
+  taxRate: number;
+};
+
+export type PurchaseInput = {
+  date: Date;
+  storeId: string;
+  storeName: string;
+  lines: PurchaseLineInput[];
+};
+
+/** Round to cents. */
+export function round2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/** Per-line amount and tax, plus the purchase subtotal, tax and total. */
+export function computeTotals(lines: { qty: number; unitPrice: number; taxRate: number }[]): {
+  amounts: number[];
+  taxes: number[];
+  subtotal: number;
+  tax: number;
+  total: number;
+} {
+  const amounts = lines.map((l) => round2(l.unitPrice * l.qty));
+  const taxes = lines.map((l, i) => round2((amounts[i] * l.taxRate) / 100));
+  const subtotal = round2(amounts.reduce((sum, a) => sum + a, 0));
+  const tax = round2(taxes.reduce((sum, t) => sum + t, 0));
+  return { amounts, taxes, subtotal, tax, total: round2(subtotal + tax) };
+}
 
 function purchaseCollection(uid: string) {
   return collection(db, 'users', uid, 'purchases');
 }
 
-export function lineTotal(lines: PurchaseLine[]): number {
-  return lines.reduce((sum, line) => sum + line.amount, 0);
-}
-
 function toLine(raw: unknown): PurchaseLine {
   const data = (raw ?? {}) as Record<string, unknown>;
+  const qty = typeof data.qty === 'number' ? data.qty : 0;
+  const amount = typeof data.amount === 'number' ? data.amount : 0;
   return {
     itemId: typeof data.itemId === 'string' ? data.itemId : '',
     itemName: typeof data.itemName === 'string' ? data.itemName : 'Unknown item',
     unit: typeof data.unit === 'string' ? data.unit : 'ea',
-    qty: typeof data.qty === 'number' ? data.qty : 0,
-    amount: typeof data.amount === 'number' ? data.amount : 0,
+    qty,
+    // Older records only stored the line amount.
+    unitPrice:
+      typeof data.unitPrice === 'number' ? data.unitPrice : qty > 0 ? round2(amount / qty) : amount,
+    amount,
+    taxRate: typeof data.taxRate === 'number' ? data.taxRate : 0,
+    tax: typeof data.tax === 'number' ? data.tax : 0,
   };
 }
 
 function toPurchase(id: string, data: Record<string, unknown>): Purchase {
   const lines = Array.isArray(data.lines) ? data.lines.map(toLine) : [];
+  const subtotal =
+    typeof data.subtotal === 'number'
+      ? data.subtotal
+      : round2(lines.reduce((sum, l) => sum + l.amount, 0));
+  const tax =
+    typeof data.tax === 'number' ? data.tax : round2(lines.reduce((sum, l) => sum + l.tax, 0));
   return {
     id,
     date: readDay(data),
     storeId: typeof data.storeId === 'string' ? data.storeId : '',
     storeName: typeof data.storeName === 'string' ? data.storeName : 'Unknown store',
     lines,
-    total: typeof data.total === 'number' ? data.total : lineTotal(lines),
+    subtotal,
+    tax,
+    total: typeof data.total === 'number' ? data.total : round2(subtotal + tax),
   };
 }
 
 function serialise(input: PurchaseInput) {
+  const totals = computeTotals(input.lines);
   return {
     ...dayFields(input.date),
     storeId: input.storeId,
     storeName: input.storeName,
-    lines: input.lines.map((line) => ({
+    lines: input.lines.map((line, i) => ({
       itemId: line.itemId,
       itemName: line.itemName,
       unit: line.unit,
       qty: line.qty,
-      amount: line.amount,
+      unitPrice: round2(line.unitPrice),
+      amount: totals.amounts[i],
+      taxRate: line.taxRate,
+      tax: totals.taxes[i],
     })),
-    total: lineTotal(input.lines),
+    subtotal: totals.subtotal,
+    tax: totals.tax,
+    total: totals.total,
   };
 }
 

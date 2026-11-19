@@ -10,11 +10,13 @@ with the owner account's password once per device; only the email is in `.env`.
 ## Features
 
 - **Franchise income** — record each payment you receive; see the monthly total
-- **Supplies purchases** — pick the store, then add each item with quantity,
-  unit and amount; see totals by store and by item
+- **Supplies purchases** — pick the store, then each item's price, ea/case and
+  quantity (− / +) and its own tax % (typed in, empty = no tax), with a
+  subtotal, tax and total breakdown; see totals by store and by item
 - **Home** — profit (income − supplies), money in / out, supplies by store,
   and recent activity
-- Manage your lists of stores and items (units like case, lbs, pack)
+- Manage your lists of stores and items (ea / case is chosen per purchase;
+  each item remembers the last one used)
 - View by **calendar month** (default) or **4-week period** — the franchise pays
   every 28 days, so 4-week periods line up with its payments. Tap the period to
   pick a month or choose the day 4-week periods start on
@@ -83,10 +85,12 @@ If you edit `.env`, restart with `npx expo start -c` to clear the Metro cache.
 
 ```
 users/{uid}/stores/{id}      name, nameKey
-users/{uid}/items/{id}       name, nameKey, unit
+users/{uid}/items/{id}       name, nameKey, unit (last 'ea' | 'case' used)
 users/{uid}/income/{id}      day, date, amount, note
-users/{uid}/purchases/{id}   day, date, storeId, storeName, total,
-                             lines[{ itemId, itemName, unit, qty, amount }]
+users/{uid}/purchases/{id}   day, date, storeId, storeName,
+                             lines[{ itemId, itemName, unit, qty, unitPrice, amount,
+                                     taxRate, tax }],
+                             subtotal, tax, total
 ```
 
 `day` is the calendar day (`"2026-11-17"`) an entry belongs to. The app shows
