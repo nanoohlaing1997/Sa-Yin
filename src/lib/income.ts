@@ -4,6 +4,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -66,6 +67,14 @@ export async function updateIncome(uid: string, id: string, input: IncomeInput):
 
 export async function deleteIncome(uid: string, id: string): Promise<void> {
   await deleteDoc(doc(db, 'users', uid, 'income', id));
+}
+
+/** Every income record, newest first (for export). */
+export async function listAllIncome(uid: string): Promise<Income[]> {
+  const snap = await getDocs(query(incomeCollection(uid), orderBy('date', 'desc')));
+  return snap.docs
+    .map((d) => toIncome(d.id, d.data()))
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
 export async function getIncome(uid: string, id: string): Promise<Income | null> {

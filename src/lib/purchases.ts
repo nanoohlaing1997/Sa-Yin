@@ -4,6 +4,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -180,6 +181,14 @@ export async function updatePurchase(
 
 export async function deletePurchase(uid: string, id: string): Promise<void> {
   await deleteDoc(doc(db, 'users', uid, 'purchases', id));
+}
+
+/** Every purchase, newest first (for export). */
+export async function listAllPurchases(uid: string): Promise<Purchase[]> {
+  const snap = await getDocs(query(purchaseCollection(uid), orderBy('date', 'desc')));
+  return snap.docs
+    .map((d) => toPurchase(d.id, d.data()))
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
 export async function getPurchase(uid: string, id: string): Promise<Purchase | null> {
