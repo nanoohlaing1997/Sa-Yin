@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActivityRow } from '@/components/ActivityRow';
 import { DonutChart, DonutSlice } from '@/components/DonutChart';
@@ -13,15 +13,9 @@ import { formatMoney, formatSignedMoney } from '@/lib/format';
 import { useIncomeInRange, useIncomeSummary } from '@/lib/income';
 import { usePeriod } from '@/lib/period-context';
 import { usePurchasesInRange, usePurchaseSummary } from '@/lib/purchases';
-import { colors, radius, shadow, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 const PALETTE = ['#D6177F', '#8E4EC6', '#2F6BFF', '#0E7C86', '#F2A93B', '#14A06B', '#E5484D'];
-
-const ACTIONS = [
-  { key: 'income', label: 'Income', emoji: '💰', tint: '#E3F6EE' },
-  { key: 'supplies', label: 'Purchase', emoji: '🛒', tint: '#FCE7F2' },
-  { key: 'manage', label: 'Stores & items', emoji: '📋', tint: '#EEE9FB' },
-] as const;
 
 type Activity =
   | { kind: 'income'; id: string; date: Date; title: string; subtitle: string; amount: number }
@@ -71,52 +65,32 @@ export default function HomeScreen() {
     color: PALETTE[i % PALETTE.length],
   }));
 
-  function onAction(key: (typeof ACTIONS)[number]['key']) {
-    if (key === 'income') router.push('/income-entry');
-    else if (key === 'supplies') router.push('/purchase');
-    else router.push('/catalog');
-  }
-
   return (
     <View style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader title="Sa Yin" subtitle="Sushi bar ledger">
           <PeriodSwitcher />
-          <View style={styles.balance}>
-            <Text style={styles.balanceLabel}>
-              {net < 0 ? 'Loss' : 'Profit'} {noun}
-            </Text>
-            <Text style={styles.balanceValue} numberOfLines={1} adjustsFontSizeToFit>
-              {formatSignedMoney(net)}
-            </Text>
-          </View>
-          <View style={styles.totals}>
-            <Total label="Money in" value={incomeSummary.total} arrow="↓" />
-            <Total label="Supplies" value={purchaseSummary.total} arrow="↑" />
-          </View>
         </ScreenHeader>
 
         <View style={styles.body}>
+          <View style={styles.hero}>
+            <View style={styles.heroGlow} />
+            <Text style={styles.heroLabel}>
+              {net < 0 ? 'Loss' : 'Profit'} {noun}
+            </Text>
+            <Text style={styles.heroValue} numberOfLines={1} adjustsFontSizeToFit>
+              {formatSignedMoney(net)}
+            </Text>
+            <View style={styles.totals}>
+              <Total label="Money in" value={incomeSummary.total} arrow="↓" />
+              <View style={styles.totalsDivider} />
+              <Total label="Supplies" value={purchaseSummary.total} arrow="↑" />
+            </View>
+          </View>
+
           <ErrorBanner message={error} />
 
           <NextPaymentCard />
-
-          <View style={styles.actions}>
-            {ACTIONS.map((a) => (
-              <Pressable
-                key={a.key}
-                accessibilityRole="button"
-                accessibilityLabel={a.label}
-                onPress={() => onAction(a.key)}
-                style={({ pressed }) => [styles.action, pressed && { opacity: 0.7 }]}
-              >
-                <View style={[styles.actionIcon, { backgroundColor: a.tint }]}>
-                  <Text style={styles.actionEmoji}>{a.emoji}</Text>
-                </View>
-                <Text style={styles.actionLabel}>{a.label}</Text>
-              </Pressable>
-            ))}
-          </View>
 
           <SectionTitle>Supplies by store</SectionTitle>
           <Card>
@@ -193,14 +167,14 @@ export default function HomeScreen() {
   );
 }
 
-/** Money in / out tile, drawn on the brand header. */
+/** Money in / out figure inside the balance card. */
 function Total({ label, value, arrow }: { label: string; value: number; arrow: string }) {
   return (
     <View style={styles.total}>
       <View style={styles.totalBadge}>
         <Text style={styles.totalArrow}>{arrow}</Text>
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={styles.totalText}>
         <Text style={styles.totalLabel}>{label}</Text>
         <Text style={styles.totalValue} numberOfLines={1} adjustsFontSizeToFit>
           {formatMoney(value)}
@@ -213,57 +187,65 @@ function Total({ label, value, arrow }: { label: string; value: number; arrow: s
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   content: { paddingBottom: 140 },
-  balance: { alignItems: 'center', paddingTop: spacing(0.5) },
-  balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
-  balanceValue: {
+  body: { paddingHorizontal: spacing(2), gap: spacing(1.5), marginTop: spacing(0.5) },
+  hero: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing(2.5),
+    paddingTop: spacing(2.5),
+    paddingBottom: spacing(2),
+    overflow: 'hidden',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  // Soft highlight in the corner of the card.
+  heroGlow: {
+    position: 'absolute',
+    top: -70,
+    right: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  heroLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '700' },
+  heroValue: {
     color: '#fff',
     fontSize: 40,
     fontWeight: '800',
     letterSpacing: -1,
-    marginTop: 2,
+    marginTop: spacing(0.5),
   },
-  body: { paddingHorizontal: spacing(2), gap: spacing(1.5), marginTop: spacing(2) },
-  totals: { flexDirection: 'row', gap: spacing(1), marginTop: spacing(0.5) },
-  total: {
-    flex: 1,
+  totals: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing(1),
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderRadius: radius.md,
-    paddingVertical: spacing(1.25),
-    paddingHorizontal: spacing(1.25),
+    marginTop: spacing(2),
+    paddingTop: spacing(1.75),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.22)',
   },
+  totalsDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    marginHorizontal: spacing(1.5),
+  },
+  total: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing(1) },
+  totalText: { flex: 1 },
   totalBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   totalArrow: { fontSize: 16, fontWeight: '800', color: '#fff' },
   totalLabel: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
   totalValue: { fontSize: 17, fontWeight: '800', color: '#fff', marginTop: 1 },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    paddingVertical: spacing(2),
-    paddingHorizontal: spacing(1),
-    ...shadow,
-  },
-  action: { flex: 1, alignItems: 'center', gap: spacing(0.75) },
-  actionIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionEmoji: { fontSize: 26 },
-  actionLabel: { fontSize: 12, fontWeight: '700', color: colors.text },
   chartRow: { flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) },
   legend: { flex: 1, gap: spacing(1) },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: spacing(1) },
