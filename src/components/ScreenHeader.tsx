@@ -24,7 +24,6 @@ export function ScreenHeader({ title, subtitle, right, children, overlap = 0 }: 
       ]}
     >
       <View style={styles.circleA} />
-      <View style={styles.circleB} />
       <View style={styles.row}>
         <View style={styles.titles}>
           {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
@@ -55,15 +54,6 @@ const styles = StyleSheet.create({
     height: 190,
     borderRadius: 95,
     backgroundColor: 'rgba(255,255,255,0.10)',
-  },
-  circleB: {
-    position: 'absolute',
-    bottom: -70,
-    left: -40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(0,0,0,0.08)',
   },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titles: { flex: 1 },

@@ -11,7 +11,8 @@
     <meta name="apple-mobile-web-app-title" content="Sa Yin" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- Let the pink header run under the status bar (white text on pink). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <!-- Android / desktop install. -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#D6177F" />
@@ -22,11 +23,23 @@
       html,
       body {
         height: 100%;
-        background-color: #E9E9EF;
+        /* Matches the app background so no white shows at the screen edges. */
+        background-color: #F3F4F8;
+      }
+      /* Desktop: grey surround for the centred phone-width column. */
+      @media (min-width: 431px) {
+        html,
+        body {
+          background-color: #E9E9EF;
+        }
       }
       /* These styles disable body scrolling if you are using <ScrollView> */
       body {
         overflow: hidden;
+        /* Pinned so iOS can't leave the page shifted after the keyboard closes. */
+        position: fixed;
+        inset: 0;
+        overscroll-behavior: none;
       }
       /* These styles make the root element full-height */
       #root {
@@ -42,5 +55,15 @@
     <noscript> You need to enable JavaScript to run this app. </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
+    <script>
+      // iOS scrolls the page up to keep a focused field above the keyboard and
+      // doesn't always scroll back, leaving a blank strip at the bottom.
+      document.addEventListener('focusout', function () {
+        setTimeout(function () {
+          var el = document.activeElement;
+          if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) window.scrollTo(0, 0);
+        }, 60);
+      });
+    </script>
   </body>
 </html>
