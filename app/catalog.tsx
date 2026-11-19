@@ -86,7 +86,8 @@ function StoresTab() {
   const [formError, setFormError] = useState<string | null>(null);
 
   async function add() {
-    if (!uid) return;
+    // Enter on the keyboard bypasses the button's disabled/loading state.
+    if (!uid || busy || !name.trim()) return;
     setFormError(null);
     if (nameTaken(data, name)) {
       setFormError('You already have a store with that name.');
@@ -106,6 +107,10 @@ function StoresTab() {
   function edit(store: Store) {
     promptText('Rename store', store.name, async (next) => {
         if (!uid || !next?.trim()) return;
+        if (nameTaken(data, next, store.id)) {
+          setFormError('You already have a store with that name.');
+          return;
+        }
         try {
           await renameStore(uid, store.id, next);
         } catch (e) {
@@ -116,7 +121,18 @@ function StoresTab() {
 
   function remove(store: Store) {
     if (!uid) return;
-    confirmAction(`Delete ${store.name}?`, 'Purchases already logged at this store keep their name.', 'Delete', () => deleteStore(uid, store.id));
+    confirmAction(
+      `Delete ${store.name}?`,
+      'Purchases already logged at this store keep their name.',
+      'Delete',
+      async () => {
+        try {
+          await deleteStore(uid, store.id);
+        } catch (e) {
+          setFormError(e instanceof Error ? e.message : 'Could not delete it.');
+        }
+      }
+    );
   }
 
   return (
@@ -181,7 +197,8 @@ function ItemsTab() {
   const [formError, setFormError] = useState<string | null>(null);
 
   async function add() {
-    if (!uid) return;
+    // Enter on the keyboard bypasses the button's disabled/loading state.
+    if (!uid || busy || !name.trim()) return;
     setFormError(null);
     if (nameTaken(data, name)) {
       setFormError('You already have an item with that name.');
@@ -216,7 +233,18 @@ function ItemsTab() {
 
   function remove(item: Item) {
     if (!uid) return;
-    confirmAction(`Delete ${item.name}?`, 'Purchases already logged keep this item’s name.', 'Delete', () => deleteItem(uid, item.id));
+    confirmAction(
+      `Delete ${item.name}?`,
+      'Purchases already logged keep this item’s name.',
+      'Delete',
+      async () => {
+        try {
+          await deleteItem(uid, item.id);
+        } catch (e) {
+          setFormError(e instanceof Error ? e.message : 'Could not delete it.');
+        }
+      }
+    );
   }
 
   return (

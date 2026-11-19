@@ -59,6 +59,11 @@ export type PurchaseLineInput = {
   qty: number;
   unitPrice: number;
   taxRate: number;
+  /**
+   * The stored line amount, kept as-is when price and qty weren't edited, so
+   * re-saving an older purchase can't change its total through rounding.
+   */
+  amount?: number;
 };
 
 export type PurchaseInput = {
@@ -74,14 +79,16 @@ export function round2(value: number): number {
 }
 
 /** Per-line amount and tax, plus the purchase subtotal, tax and total. */
-export function computeTotals(lines: { qty: number; unitPrice: number; taxRate: number }[]): {
+export function computeTotals(
+  lines: { qty: number; unitPrice: number; taxRate: number; amount?: number }[]
+): {
   amounts: number[];
   taxes: number[];
   subtotal: number;
   tax: number;
   total: number;
 } {
-  const amounts = lines.map((l) => round2(l.unitPrice * l.qty));
+  const amounts = lines.map((l) => l.amount ?? round2(l.unitPrice * l.qty));
   const taxes = lines.map((l, i) => round2((amounts[i] * l.taxRate) / 100));
   const subtotal = round2(amounts.reduce((sum, a) => sum + a, 0));
   const tax = round2(taxes.reduce((sum, t) => sum + t, 0));
@@ -141,7 +148,7 @@ function serialise(input: PurchaseInput) {
       itemName: line.itemName,
       unit: line.unit,
       qty: line.qty,
-      unitPrice: round2(line.unitPrice),
+      unitPrice: line.unitPrice,
       amount: totals.amounts[i],
       taxRate: line.taxRate,
       tax: totals.taxes[i],
@@ -257,6 +264,8 @@ export type PurchaseSummary = {
 
 export function summarisePurchases(purchases: Purchase[]): PurchaseSummary {
   let total = 0;
+  // Item amounts are before tax, so item shares are of the before-tax subtotal.
+  let itemsTotal = 0;
   const items = new Map<string, ItemTotal>();
   const stores = new Map<string, StoreTotal>();
 
@@ -276,7 +285,9 @@ export function summarisePurchases(purchases: Purchase[]): PurchaseSummary {
     stores.set(storeKey, store);
 
     for (const line of purchase.lines) {
-      const itemKey = line.itemId || line.itemName;
+      // Separate rows for "ea" and "case" so quantities and unit prices make sense.
+      const itemKey = `${line.itemId || line.itemName}|${line.unit}`;
+      itemsTotal += line.amount;
       const item = items.get(itemKey) ?? {
         itemId: line.itemId,
         itemName: line.itemName,
@@ -291,16 +302,16 @@ export function summarisePurchases(purchases: Purchase[]): PurchaseSummary {
     }
   }
 
-  const withShare = <T extends { total: number; share: number }>(list: T[]): T[] =>
+  const withShare = <T extends { total: number; share: number }>(list: T[], of: number): T[] =>
     list
-      .map((entry) => ({ ...entry, share: total > 0 ? entry.total / total : 0 }))
+      .map((entry) => ({ ...entry, share: of > 0 ? entry.total / of : 0 }))
       .sort((a, b) => b.total - a.total);
 
   return {
     total,
     trips: purchases.length,
-    byItem: withShare([...items.values()]),
-    byStore: withShare([...stores.values()]),
+    byItem: withShare([...items.values()], itemsTotal),
+    byStore: withShare([...stores.values()], total),
   };
 }
 

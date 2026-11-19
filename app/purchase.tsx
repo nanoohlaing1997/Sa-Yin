@@ -60,6 +60,11 @@ type DraftLine = {
   qty: string;
   /** Tax %, typed by hand; empty means no tax. */
   tax: string;
+  /**
+   * The saved qty, unit price and amount of a line loaded for editing. Kept
+   * until price or qty is edited, so re-saving can't change the total.
+   */
+  saved?: { qty: number; unitPrice: number; amount: number };
 };
 
 let draftCounter = 0;
@@ -111,6 +116,8 @@ export default function PurchaseModal() {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The purchase being edited was deleted; closing the error closes the form.
+  const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     if (!uid || !id) return;
@@ -120,7 +127,8 @@ export default function PurchaseModal() {
       .then((purchase) => {
         if (cancelled) return;
         if (!purchase) {
-          setError('That purchase no longer exists.');
+          setMissing(true);
+          setError('That purchase no longer exists. It may have been deleted.');
           return;
         }
         setDate(purchase.date);
@@ -133,8 +141,9 @@ export default function PurchaseModal() {
             itemName: line.itemName,
             unit: toUnit(line.unit),
             price: line.unitPrice.toFixed(2),
-            qty: String(Math.max(1, Math.round(line.qty))),
+            qty: String(line.qty),
             tax: line.taxRate ? String(line.taxRate) : '',
+            saved: { qty: line.qty, unitPrice: line.unitPrice, amount: line.amount },
           }))
         );
       })
@@ -151,13 +160,22 @@ export default function PurchaseModal() {
   }, [uid, id]);
 
   const totals = computeTotals(
-    lines.map((l) => ({ qty: qtyOf(l), unitPrice: priceOf(l), taxRate: taxOf(l) || 0 }))
+    lines.map((l) => ({
+      qty: l.saved?.qty ?? qtyOf(l),
+      unitPrice: l.saved?.unitPrice ?? priceOf(l),
+      amount: l.saved?.amount,
+      taxRate: taxOf(l) || 0,
+    }))
   );
   const pricedCount = lines.filter((l) => priceOf(l) > 0).length;
 
   function patchLine(key: string, patch: Partial<DraftLine>) {
+    // Editing price or qty means the line is recalculated from what's typed.
+    const recalc = 'price' in patch || 'qty' in patch;
     setLines((current) =>
-      current.map((line) => (line.key === key ? { ...line, ...patch } : line))
+      current.map((line) =>
+        line.key === key ? { ...line, ...patch, ...(recalc ? { saved: undefined } : null) } : line
+      )
     );
   }
 
@@ -218,14 +236,11 @@ export default function PurchaseModal() {
         setError(`Enter a tax % between 0 and 100 for ${line.itemName}, or leave it empty.`);
         return;
       }
-      parsed.push({
-        itemId: line.itemId,
-        itemName: line.itemName,
-        unit: line.unit,
-        qty,
-        unitPrice,
-        taxRate,
-      });
+      parsed.push(
+        line.saved
+          ? { itemId: line.itemId, itemName: line.itemName, unit: line.unit, taxRate, ...line.saved }
+          : { itemId: line.itemId, itemName: line.itemName, unit: line.unit, qty, unitPrice, taxRate }
+      );
     }
 
     setSaving(true);
@@ -425,7 +440,8 @@ export default function PurchaseModal() {
                   <View style={styles.review}>
                     <View style={styles.reviewRow}>
                       <Text style={styles.reviewCalc}>
-                        {qty} {line.unit} × {formatMoney(price)}
+                        {line.saved?.qty ?? qty} {line.unit} ×{' '}
+                        {formatMoney(line.saved?.unitPrice ?? price)}
                       </Text>
                       <Text style={styles.reviewValue}>{formatMoney(totals.amounts[index])}</Text>
                     </View>
@@ -518,7 +534,14 @@ export default function PurchaseModal() {
         onClose={() => setItemPickerFor(null)}
       />
 
-      <ErrorPopup message={error} onClose={() => setError(null)} />
+      <ErrorPopup
+        message={error}
+        title={missing ? 'Purchase not found' : undefined}
+        onClose={() => {
+          setError(null);
+          if (missing) close();
+        }}
+      />
     </SafeAreaView>
   );
 }

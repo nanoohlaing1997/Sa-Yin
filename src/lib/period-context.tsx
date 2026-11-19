@@ -36,6 +36,11 @@ type PeriodContextValue = {
   isCurrent: boolean;
   /** True when there is no later period that has started yet. */
   isLatest: boolean;
+  /**
+   * False while the saved view settings (and, for 4 weeks, the latest
+   * payment) are loading — screens wait so they don't load a wrong period first.
+   */
+  ready: boolean;
   next: () => void;
   prev: () => void;
   /** Month mode: jump to the month containing `date`. 4-week mode: start periods on `date`. */
@@ -62,6 +67,7 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
   const latest = useLatestIncome(user?.uid ?? null);
 
   const [mode, setModeState] = useState<PeriodMode>('month');
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [savedAnchor, setSavedAnchor] = useState<Date | null>(null);
   // The period the user navigated to; null means "the one containing today".
   const [pickedMonth, setPickedMonth] = useState<Date | null>(null);
@@ -77,7 +83,10 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
         const anchor = fromDayString(rawAnchor);
         if (anchor) setSavedAnchor(startOfDay(anchor));
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setSettingsLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -91,6 +100,8 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
   const anchorMs = startOfDay(anchor).getTime();
   const monthStartMs = (pickedMonth ?? startOfMonth(today)).getTime();
   const cycleStartMs = (pickedCycle ?? cycleStartFor(anchor, today)).getTime();
+  const ready =
+    settingsLoaded && (mode === 'month' || savedAnchor !== null || latest !== undefined);
 
   const value = useMemo<PeriodContextValue>(() => {
     const now = new Date();
@@ -111,6 +122,7 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
         noun: 'this month',
         isCurrent: now >= start && now <= end,
         isLatest: addMonths(start, 1) > now,
+        ready,
         next: () => setPickedMonth(addMonths(start, 1)),
         prev: () => setPickedMonth(addMonths(start, -1)),
         pickDate: (date) => setPickedMonth(startOfMonth(date)),
@@ -131,6 +143,7 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
       noun: 'these 4 weeks',
       isCurrent: now >= start && now <= end,
       isLatest: addDays(start, PAYMENT_CYCLE_DAYS) > now,
+      ready,
       next: () => setPickedCycle(addDays(start, PAYMENT_CYCLE_DAYS)),
       prev: () => setPickedCycle(addDays(start, -PAYMENT_CYCLE_DAYS)),
       pickDate: (date) => {
@@ -143,7 +156,7 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
         if (date < start || date > end) setPickedCycle(cycleStartFor(new Date(anchorMs), date));
       },
     };
-  }, [mode, monthStartMs, cycleStartMs, anchorMs]);
+  }, [mode, monthStartMs, cycleStartMs, anchorMs, ready]);
 
   return <PeriodContext.Provider value={value}>{children}</PeriodContext.Provider>;
 }

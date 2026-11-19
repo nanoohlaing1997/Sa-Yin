@@ -15,9 +15,11 @@ import { colors, radius, shadow, spacing } from '@/theme';
 
 export default function IncomeScreen() {
   const { user } = useAuth();
-  const { start, end, noun } = usePeriod();
+  const { start, end, noun, ready } = usePeriod();
   const router = useRouter();
-  const { income, loading, error } = useIncomeInRange(user?.uid ?? null, start, end);
+  const incomeState = useIncomeInRange(ready ? (user?.uid ?? null) : null, start, end);
+  const { income, error } = incomeState;
+  const loading = !ready || incomeState.loading;
   const summary = useIncomeSummary(income);
 
   return (

@@ -13,10 +13,14 @@ import { colors, radius, spacing } from '@/theme';
 
 export default function SushiScreen() {
   const { user } = useAuth();
-  const { start, end, noun } = usePeriod();
+  const { start, end, noun, ready } = usePeriod();
   const router = useRouter();
-  const { purchases, loading, error } = usePurchasesInRange(user?.uid ?? null, start, end);
+  const purchaseState = usePurchasesInRange(ready ? (user?.uid ?? null) : null, start, end);
+  const { purchases, error } = purchaseState;
+  const loading = !ready || purchaseState.loading;
   const summary = usePurchaseSummary(purchases);
+  // byItem has a row per item and unit; count each item once.
+  const itemCount = new Set(summary.byItem.map((i) => i.itemId || i.itemName)).size;
 
   return (
     <View style={styles.safe}>
@@ -42,7 +46,7 @@ export default function SushiScreen() {
           <Text style={styles.totalValue}>{formatMoney(summary.total)}</Text>
           <Text style={styles.totalMeta}>
             {summary.trips} {summary.trips === 1 ? 'purchase' : 'purchases'} ·{' '}
-            {summary.byItem.length} {summary.byItem.length === 1 ? 'item' : 'items'}
+            {itemCount} {itemCount === 1 ? 'item' : 'items'}
           </Text>
         </Card>
 
@@ -76,7 +80,7 @@ export default function SushiScreen() {
             <SectionTitle>Top items</SectionTitle>
             <Card>
               {summary.byItem.slice(0, 8).map((item, i) => (
-                <View key={item.itemId || item.itemName}>
+                <View key={`${item.itemId || item.itemName}-${item.unit}`}>
                   {i > 0 && <View style={styles.divider} />}
                   <View style={styles.statRow}>
                     <View style={styles.statText}>
